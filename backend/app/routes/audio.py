@@ -59,6 +59,10 @@ def clip():
     if operation not in ['extract', 'delete']:
         return jsonify({'error': 'Invalid operation. Use "extract" or "delete"'}), 400
     
+    format_valid, error = validate_audio_format(output_format)
+    if not format_valid:
+        return jsonify({'error': error}), 400
+    
     task_id, error = start_audio_clip(audio_file_id, operation, start_time, end_time, output_format)
     
     if error:

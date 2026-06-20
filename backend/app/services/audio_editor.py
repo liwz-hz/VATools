@@ -1,26 +1,30 @@
 import os
 import threading
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
+from flask import current_app
 from app import db, socketio
 from app.models import Task, File
 from app.utils.ffmpeg_utils import clip_audio, get_audio_duration
 from app.config import Config
 from loguru import logger
+from sqlalchemy.orm import scoped_session, sessionmaker
 
-def process_audio_clip(task_id):
-    with db.app.app_context():
-        task = Task.query.get(task_id)
-        if not task:
-            logger.error(f"Task {task_id} not found")
-            return
-        
-        task.status = 'processing'
-        db.session.commit()
+def process_audio_clip(task_id, app):
+    with app.app_context():
+        session = scoped_session(sessionmaker(bind=db.engine))
         
         try:
+            task = session.query(Task).filter_by(id=task_id).first()
+            if not task:
+                logger.error(f"Task {task_id} not found")
+                return
+            
+            task.status = 'processing'
+            session.commit()
+            
             params = task.get_params()
-            audio_file = File.query.get(params['audio_file_id'])
+            audio_file = session.query(File).filter_by(id=params['audio_file_id']).first()
             
             if not audio_file or not os.path.exists(audio_file.file_path):
                 raise Exception(f"Audio file not found: {task.input_file}")
@@ -63,7 +67,7 @@ def process_audio_clip(task_id):
                 
                 temp_parts = []
                 if start_time > 0:
-                    part1_path = output_path.replace('.mp3', '_part1.mp3')
+                    part1_path = output_path.replace(f'.{output_format}', f'_part1.{output_format}')
                     success, error = clip_audio(
                         audio_file.file_path,
                         part1_path,
@@ -75,7 +79,7 @@ def process_audio_clip(task_id):
                         temp_parts.append(part1_path)
                 
                 if end_time < duration:
-                    part2_path = output_path.replace('.mp3', '_part2.mp3')
+                    part2_path = output_path.replace(f'.{output_format}', f'_part2.{output_format}')
                     success, error = clip_audio(
                         audio_file.file_path,
                         part2_path,
@@ -124,13 +128,14 @@ def process_audio_clip(task_id):
                 file_size=os.path.getsize(output_path),
                 duration=duration
             )
-            db.session.add(output_file)
+            session.add(output_file)
+            session.flush()
             
             task.output_file = output_path
             task.status = 'completed'
             task.progress = 100
-            task.completed_at = datetime.utcnow()
-            db.session.commit()
+            task.completed_at = datetime.now(timezone.utc)
+            session.commit()
             
             socketio.emit('task_completed', {
                 'task_id': task.id,
@@ -141,19 +146,23 @@ def process_audio_clip(task_id):
             logger.info(f"Audio clip task {task_id} completed")
             
         except Exception as e:
-            task.status = 'failed'
-            task.error_message = str(e)
-            db.session.commit()
-            
-            socketio.emit('task_failed', {
-                'task_id': task.id,
-                'error': str(e)
-            })
-            
-            logger.error(f"Audio clip task {task_id} failed: {str(e)}")
+            task = session.query(Task).filter_by(id=task_id).first()
+            if task:
+                task.status = 'failed'
+                task.error_message = str(e)
+                session.commit()
+                
+                socketio.emit('task_failed', {
+                    'task_id': task.id,
+                    'error': str(e)
+                })
+                
+                logger.error(f"Audio clip task {task_id} failed: {str(e)}")
+        finally:
+            session.remove()
 
 def start_audio_clip(audio_file_id, operation, start_time, end_time, output_format='mp3'):
-    audio_file = File.query.get(audio_file_id)
+    audio_file = db.session.get(File, audio_file_id)
     if not audio_file:
         return None, "Audio file not found"
     
@@ -173,7 +182,8 @@ def start_audio_clip(audio_file_id, operation, start_time, end_time, output_form
     db.session.add(task)
     db.session.commit()
     
-    thread = threading.Thread(target=process_audio_clip, args=(task.id,))
+    app = current_app._get_current_object()
+    thread = threading.Thread(target=process_audio_clip, args=(task.id, app))
     thread.start()
     
     return task.id, None
