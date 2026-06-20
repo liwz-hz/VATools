@@ -40,7 +40,7 @@ cd VATools
 
 启动后访问：
 - **前端**: http://localhost:3000
-- **后端**: http://localhost:5000
+- **后端**: http://localhost:5001
 
 **启动脚本命令：**
 
@@ -82,7 +82,7 @@ pip install -r requirements.txt
 python run.py
 ```
 
-后端将在 http://localhost:5000 启动。
+后端将在 http://localhost:5001 启动。
 
 #### 3. 前端设置
 
@@ -210,6 +210,27 @@ VATools支持macOS的硬件加速：
 默认使用"自动检测"，系统会自动选择最快的可用加速方式。
 
 ## 常见问题
+
+### 音源分离功能不可用
+音源分离功能依赖 Spleeter，需要 Python 3.9-3.11：
+
+```bash
+# 检查 Python 版本
+python --version
+
+# 如果版本不匹配，建议使用 pyenv 或 conda 创建 Python 3.11 环境
+# 使用 pyenv
+pyenv install 3.11.5
+pyenv local 3.11.5
+
+# 或使用 conda
+conda create -n vatools python=3.11
+conda activate vatools
+
+# 然后重新安装依赖
+cd backend
+pip install spleeter==2.4.0 torch>=2.0.0
+```
 
 ### FFmpeg未找到
 确保FFmpeg已安装并添加到PATH：

@@ -52,7 +52,19 @@ check_dependencies() {
         print_error "未找到 Python 3，请先安装 Python 3.9+"
         exit 1
     fi
+    
+    PYTHON_VERSION=$(python3 --version 2>&1 | awk '{print $2}')
+    PYTHON_MAJOR=$(echo $PYTHON_VERSION | cut -d. -f1)
+    PYTHON_MINOR=$(echo $PYTHON_VERSION | cut -d. -f2)
+    
     print_success "Python 3 已安装: $(python3 --version)"
+    
+    # 检查 Python 版本兼容性
+    if [ "$PYTHON_MAJOR" -eq 3 ] && [ "$PYTHON_MINOR" -gt 11 ]; then
+        print_warning "检测到 Python $PYTHON_VERSION"
+        print_warning "音源分离功能需要 Python 3.9-3.11"
+        print_info "其他功能（音频提取、编辑）可正常使用"
+    fi
     
     # 检查 Node.js
     if ! command -v node &> /dev/null; then
@@ -131,6 +143,13 @@ create_directories() {
 start_backend() {
     print_info "启动后端服务..."
     
+    # 清理占用端口的进程
+    if lsof -ti:5001 > /dev/null 2>&1; then
+        print_warning "端口 5001 被占用，正在清理..."
+        lsof -ti:5001 | xargs kill -9 2>/dev/null
+        sleep 1
+    fi
+    
     cd "$BACKEND_DIR"
     source venv/bin/activate
     
@@ -154,7 +173,7 @@ start_backend() {
     # 检查是否启动成功
     if ps -p $BACKEND_PID > /dev/null 2>&1; then
         print_success "后端服务已启动 (PID: $BACKEND_PID)"
-        print_info "后端地址: http://localhost:5000"
+        print_info "后端地址: http://localhost:5001"
         print_info "后端日志: $BACKEND_LOG"
     else
         print_error "后端服务启动失败，请查看日志: $BACKEND_LOG"
@@ -167,6 +186,13 @@ start_backend() {
 # 启动前端服务
 start_frontend() {
     print_info "启动前端服务..."
+    
+    # 清理占用端口的进程
+    if lsof -ti:3000 > /dev/null 2>&1; then
+        print_warning "端口 3000 被占用，正在清理..."
+        lsof -ti:3000 | xargs kill -9 2>/dev/null
+        sleep 1
+    fi
     
     cd "$FRONTEND_DIR"
     
@@ -235,7 +261,7 @@ status_services() {
     if [ -f "$BACKEND_PID_FILE" ]; then
         PID=$(cat "$BACKEND_PID_FILE")
         if ps -p $PID > /dev/null 2>&1; then
-            print_success "后端服务运行中 (PID: $PID) - http://localhost:5000"
+            print_success "后端服务运行中 (PID: $PID) - http://localhost:5001"
         else
             print_warning "后端服务已停止"
         fi
@@ -309,7 +335,7 @@ main() {
             echo ""
             print_info "访问地址:"
             echo "  前端: http://localhost:3000"
-            echo "  后端: http://localhost:5000"
+            echo "  后端: http://localhost:5001"
             echo ""
             print_info "管理命令:"
             echo "  停止服务: ./start.sh stop"

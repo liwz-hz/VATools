@@ -9,6 +9,13 @@ from app.config import Config
 from loguru import logger
 from sqlalchemy.orm import scoped_session, sessionmaker
 
+def check_spleeter_available():
+    try:
+        from spleeter.separator import Separator
+        return True
+    except ImportError:
+        return False
+
 def get_device():
     try:
         import torch
@@ -41,6 +48,13 @@ def process_audio_separation(task_id: int, app):
             
             stems = params.get('stems', ['vocals', 'drums', 'bass', 'other'])
             
+            # Check if Spleeter is available
+            if not check_spleeter_available():
+                raise Exception(
+                    "Spleeter is not installed. Audio separation requires Python 3.9-3.11. "
+                    "To enable this feature, use Python 3.9-3.11 and install: pip install spleeter==2.4.0"
+                )
+            
             socketio.emit('task_progress', {
                 'task_id': task.id,
                 'progress': 10,
@@ -50,7 +64,13 @@ def process_audio_separation(task_id: int, app):
             device = get_device()
             logger.info(f"Using device: {device}")
             
-            from spleeter.separator import Separator
+            try:
+                from spleeter.separator import Separator
+            except ImportError as e:
+                raise Exception(
+                    "Failed to import Spleeter. Audio separation requires Python 3.9-3.11. "
+                    f"Error: {str(e)}"
+                )
             
             if 'vocals' in stems and len(stems) == 1:
                 model = 'spleeter:2stems'

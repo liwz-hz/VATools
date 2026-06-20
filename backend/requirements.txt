@@ -4,18 +4,18 @@ Flask-CORS==4.0.0
 Flask-SocketIO==5.3.5
 
 # 数据库
-SQLAlchemy==2.0.23
+SQLAlchemy>=2.0.27
 Flask-SQLAlchemy==3.1.1
 
 # 音视频处理
 ffmpeg-python==0.2.0
 
-# 音源分离
-spleeter==2.4.0
+# 音源分离（可选，需要 Python 3.9-3.11）
+# spleeter==2.4.0
 
-# macOS加速
-torch>=2.0.0
-mlx>=0.1.0
+# macOS加速（可选）
+# torch>=2.0.0
+# mlx>=0.1.0
 
 # WebSocket
 python-socketio==5.10.0
