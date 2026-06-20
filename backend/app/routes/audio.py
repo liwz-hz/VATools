@@ -1,5 +1,6 @@
 from flask import Blueprint, request, jsonify
 from app.services.audio_extractor import start_audio_extraction
+from app.services.audio_editor import start_audio_clip
 from app.utils.ffmpeg_utils import validate_audio_format
 from loguru import logger
 
@@ -40,3 +41,26 @@ def extract():
     logger.info(f"Audio extraction task created: {task_id}")
     
     return jsonify({'task_id': task_id, 'status': 'pending'}), 201
+
+@bp.route('/clip', methods=['POST'])
+def clip():
+    data = request.get_json()
+    
+    audio_file_id = data.get('audio_file_id')
+    operation = data.get('operation')
+    start_time = data.get('start_time')
+    end_time = data.get('end_time')
+    output_format = data.get('output_format', 'mp3')
+    
+    if not all([audio_file_id, operation, start_time is not None, end_time is not None]):
+        return jsonify({'error': 'Missing required parameters'}), 400
+    
+    if operation not in ['extract', 'delete']:
+        return jsonify({'error': 'Invalid operation. Use "extract" or "delete"'}), 400
+    
+    task_id, error = start_audio_clip(audio_file_id, operation, start_time, end_time, output_format)
+    
+    if error:
+        return jsonify({'error': error}), 400
+    
+    return jsonify({'task_id': task_id}), 201
