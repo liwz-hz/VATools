@@ -13,21 +13,12 @@ import {
   Alert,
   TextField,
 } from '@mui/material'
-import { CloudUpload, PlayArrow, ContentCut, Download } from '@mui/icons-material'
-import { uploadFile, clipAudio } from '../services/api'
+import { CloudUpload, PlayArrow, ContentCut, Delete, Download } from '@mui/icons-material'
+import { uploadFile, clipAudio, downloadFile } from '../services/api'
 import WaveformViewer from './WaveformViewer'
 
-interface FileData {
-  id: number
-  filename: string
-}
-
-interface CompletedFile {
-  filename: string
-}
-
 const AudioEditor: React.FC = () => {
-  const [uploadedFile, setUploadedFile] = useState<FileData | null>(null)
+  const [uploadedFile, setUploadedFile] = useState<any>(null)
   const [audioUrl, setAudioUrl] = useState<string>('')
   const [startTime, setStartTime] = useState(0)
   const [endTime, setEndTime] = useState(0)
@@ -36,9 +27,9 @@ const AudioEditor: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
-  const [completedFile, setCompletedFile] = useState<CompletedFile | null>(null)
+  const [completedFile, setCompletedFile] = useState<any>(null)
 
-  const onDrop = useCallback(async (acceptedFiles: globalThis.File[]) => {
+  const onDrop = useCallback(async (acceptedFiles: any[]) => {
     const file = acceptedFiles[0]
     if (file) {
       try {
@@ -47,9 +38,8 @@ const AudioEditor: React.FC = () => {
         setUploadedFile(uploaded)
         setAudioUrl(URL.createObjectURL(file))
         setCompletedFile(null)
-      } catch (err: unknown) {
-        const error = err as { response?: { data?: { error?: string } } }
-        setError(error.response?.data?.error || 'Upload failed')
+      } catch (err: any) {
+        setError(err.response?.data?.error || 'Upload failed')
       }
     }
   }, [])
@@ -79,20 +69,21 @@ const AudioEditor: React.FC = () => {
     try {
       await clipAudio(uploadedFile.id, operation, startTime, endTime, outputFormat)
       
+      // Simulate progress
       setProgress(100)
       setIsProcessing(false)
       setCompletedFile({
         filename: `edited_${uploadedFile.filename}`,
       })
-    } catch (err: unknown) {
-      const error = err as { response?: { data?: { error?: string } } }
-      setError(error.response?.data?.error || 'Processing failed')
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Processing failed')
       setIsProcessing(false)
     }
   }
 
   const handleDownload = async () => {
     if (completedFile) {
+      // In real implementation, use the actual file ID
       alert('Download functionality will be implemented with actual file tracking')
     }
   }
@@ -121,7 +112,7 @@ const AudioEditor: React.FC = () => {
           <Typography>
             {isDragActive ? '放下文件以上传' : '拖拽音频文件到此处，或点击选择'}
           </Typography>
-          <Typography variant="caption" color="text.secondary">
+          <Typography variant="caption" color="textSecondary">
             支持格式：MP3, WAV, FLAC
           </Typography>
         </Box>
@@ -228,7 +219,7 @@ const AudioEditor: React.FC = () => {
             处理中...
           </Typography>
           <LinearProgress variant="determinate" value={progress} sx={{ mb: 1 }} />
-          <Typography variant="body2" color="text.secondary">
+          <Typography variant="body2" color="textSecondary">
             {progress}% 完成
           </Typography>
         </Paper>

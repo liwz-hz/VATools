@@ -7,7 +7,7 @@ interface WaveformViewerProps {
   onRegionUpdate?: (start: number, end: number) => void
 }
 
-const WaveformViewer: React.FC<WaveformViewerProps> = ({ audioUrl }) => {
+const WaveformViewer: React.FC<WaveformViewerProps> = ({ audioUrl, onRegionUpdate }) => {
   const containerRef = useRef<HTMLDivElement>(null)
   const wavesurferRef = useRef<WaveSurfer | null>(null)
   const [duration, setDuration] = useState(0)
@@ -22,17 +22,35 @@ const WaveformViewer: React.FC<WaveformViewerProps> = ({ audioUrl }) => {
       cursorColor: '#333',
       cursorWidth: 2,
       height: 128,
+      responsive: true,
     })
 
     wavesurfer.load(audioUrl)
 
     wavesurfer.on('ready', () => {
       setDuration(wavesurfer.getDuration())
+      
+      // Enable regions plugin
+      wavesurfer.registerPlugin(
+        (window as any).WaveSurfer.regions?.create({
+          dragSelection: {
+            slop: 5,
+          },
+        })
+      )
     })
 
-    wavesurfer.on('finish', () => {})
-    
-    wavesurfer.on('error', () => {})
+    wavesurfer.on('region-created', (region) => {
+      if (onRegionUpdate) {
+        onRegionUpdate(region.start, region.end)
+      }
+    })
+
+    wavesurfer.on('region-updated', (region) => {
+      if (onRegionUpdate) {
+        onRegionUpdate(region.start, region.end)
+      }
+    })
 
     wavesurferRef.current = wavesurfer
 
@@ -50,7 +68,7 @@ const WaveformViewer: React.FC<WaveformViewerProps> = ({ audioUrl }) => {
   return (
     <Box>
       <div ref={containerRef} style={{ width: '100%' }} />
-      <Typography variant="caption" color="text.secondary">
+      <Typography variant="caption" color="textSecondary">
         总时长: {formatTime(duration)}
       </Typography>
     </Box>
