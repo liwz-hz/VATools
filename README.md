@@ -25,14 +25,48 @@
 
 ## 快速开始
 
-### 1. 克隆项目
+### 一键启动（推荐）
+
+使用提供的启动脚本快速启动所有服务：
+
+```bash
+# 克隆项目
+git clone <repository-url>
+cd VATools
+
+# 一键启动（自动安装依赖并启动服务）
+./start.sh
+```
+
+启动后访问：
+- **前端**: http://localhost:3000
+- **后端**: http://localhost:5000
+
+**启动脚本命令：**
+
+```bash
+./start.sh           # 启动所有服务
+./start.sh start     # 启动所有服务
+./start.sh stop      # 停止所有服务
+./start.sh restart   # 重启所有服务
+./start.sh status    # 查看服务状态
+./start.sh logs      # 查看实时日志
+./start.sh install   # 仅安装依赖
+./start.sh help      # 显示帮助信息
+```
+
+### 手动安装（可选）
+
+如果需要手动安装和启动，请按照以下步骤：
+
+#### 1. 克隆项目
 
 ```bash
 git clone <repository-url>
 cd VATools
 ```
 
-### 2. 后端设置
+#### 2. 后端设置
 
 ```bash
 cd backend
@@ -50,7 +84,7 @@ python run.py
 
 后端将在 http://localhost:5000 启动。
 
-### 3. 前端设置
+#### 3. 前端设置
 
 ```bash
 cd frontend
