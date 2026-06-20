@@ -1,0 +1,24 @@
+# Web框架
+Flask==3.0.0
+Flask-CORS==4.0.0
+Flask-SocketIO==5.3.5
+
+# 数据库
+SQLAlchemy==2.0.23
+
+# 音视频处理
+ffmpeg-python==0.2.0
+
+# 音源分离
+spleeter==2.4.0
+
+# macOS加速
+torch>=2.0.0
+mlx>=0.1.0
+
+# WebSocket
+python-socketio==5.10.0
+eventlet==0.33.3
+
+# 日志
+loguru==0.7.2
