@@ -5,6 +5,7 @@ Flask-SocketIO==5.3.5
 
 # 数据库
 SQLAlchemy==2.0.23
+Flask-SQLAlchemy==3.1.1
 
 # 音视频处理
 ffmpeg-python==0.2.0
