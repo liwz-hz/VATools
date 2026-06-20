@@ -1,6 +1,7 @@
 from flask import Blueprint, request, jsonify
 from app.services.audio_extractor import start_audio_extraction
 from app.services.audio_editor import start_audio_clip
+from app.services.audio_separator import start_audio_separation
 from app.utils.ffmpeg_utils import validate_audio_format
 from loguru import logger
 
@@ -59,6 +60,23 @@ def clip():
         return jsonify({'error': 'Invalid operation. Use "extract" or "delete"'}), 400
     
     task_id, error = start_audio_clip(audio_file_id, operation, start_time, end_time, output_format)
+    
+    if error:
+        return jsonify({'error': error}), 400
+    
+    return jsonify({'task_id': task_id}), 201
+
+@bp.route('/separate', methods=['POST'])
+def separate():
+    data = request.get_json()
+    
+    audio_file_id = data.get('audio_file_id')
+    stems = data.get('stems', ['vocals', 'drums', 'bass', 'other'])
+    
+    if not audio_file_id:
+        return jsonify({'error': 'audio_file_id is required'}), 400
+    
+    task_id, error = start_audio_separation(audio_file_id, stems)
     
     if error:
         return jsonify({'error': error}), 400
