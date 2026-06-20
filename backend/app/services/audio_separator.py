@@ -136,7 +136,10 @@ def process_audio_separation(task_id: int, app):
         finally:
             session.remove()
 
-def start_audio_separation(audio_file_id: int, stems=['vocals', 'drums', 'bass', 'other']):
+def start_audio_separation(audio_file_id: int, stems=None):
+    if stems is None:
+        stems = ['vocals', 'drums', 'bass', 'other']
+    
     audio_file = db.session.get(File, audio_file_id)
     if not audio_file:
         return None, "Audio file not found"
