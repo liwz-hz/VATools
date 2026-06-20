@@ -1,4 +1,4 @@
-import React, { useState, useCallback } from 'react'
+import React, { useState, useCallback, useRef } from 'react'
 import { useDropzone } from 'react-dropzone'
 import {
   Box,
@@ -12,10 +12,19 @@ import {
   LinearProgress,
   Alert,
   TextField,
+  Chip,
 } from '@mui/material'
-import { CloudUpload, PlayArrow, ContentCut, Delete, Download } from '@mui/icons-material'
+import { 
+  CloudUpload, 
+  PlayArrow, 
+  Pause, 
+  Stop, 
+  ContentCut, 
+  Delete, 
+  Download 
+} from '@mui/icons-material'
 import { uploadFile, clipAudio, downloadFile } from '../services/api'
-import WaveformViewer from './WaveformViewer'
+import WaveformViewer, { WaveformViewerRef } from './WaveformViewer'
 
 const AudioEditor: React.FC = () => {
   const [uploadedFile, setUploadedFile] = useState<any>(null)
@@ -27,19 +36,25 @@ const AudioEditor: React.FC = () => {
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
+  const [success, setSuccess] = useState<string | null>(null)
   const [completedFile, setCompletedFile] = useState<any>(null)
+  
+  const waveformRef = useRef<WaveformViewerRef>(null)
 
   const onDrop = useCallback(async (acceptedFiles: any[]) => {
     const file = acceptedFiles[0]
     if (file) {
       try {
         setError(null)
+        setSuccess(null)
         const uploaded = await uploadFile(file)
         setUploadedFile(uploaded)
         setAudioUrl(URL.createObjectURL(file))
         setCompletedFile(null)
+        setStartTime(0)
+        setEndTime(0)
       } catch (err: any) {
-        setError(err.response?.data?.error || 'Upload failed')
+        setError(err.response?.data?.error || '上传失败')
       }
     }
   }, [])
@@ -59,40 +74,68 @@ const AudioEditor: React.FC = () => {
     setEndTime(end)
   }
 
+  const handlePlayRegion = () => {
+    if (waveformRef.current && startTime < endTime) {
+      waveformRef.current.playRegion(startTime, endTime)
+    }
+  }
+
+  const handleStop = () => {
+    if (waveformRef.current) {
+      waveformRef.current.stop()
+    }
+  }
+
   const handleProcess = async () => {
-    if (!uploadedFile) return
+    if (!uploadedFile) {
+      setError('请先上传音频文件')
+      return
+    }
+
+    if (startTime >= endTime) {
+      setError('请选择有效的音频片段（开始时间必须小于结束时间）')
+      return
+    }
 
     setIsProcessing(true)
     setProgress(0)
     setError(null)
+    setSuccess(null)
 
     try {
       await clipAudio(uploadedFile.id, operation, startTime, endTime, outputFormat)
       
-      // Simulate progress
+      // 模拟进度
       setProgress(100)
       setIsProcessing(false)
+      setSuccess(`${operation === 'extract' ? '片段提取' : '片段删除'}成功！`)
       setCompletedFile({
         filename: `edited_${uploadedFile.filename}`,
       })
     } catch (err: any) {
-      setError(err.response?.data?.error || 'Processing failed')
+      setError(err.response?.data?.error || '处理失败')
       setIsProcessing(false)
     }
   }
 
   const handleDownload = async () => {
     if (completedFile) {
-      // In real implementation, use the actual file ID
-      alert('Download functionality will be implemented with actual file tracking')
+      alert('下载功能将在实际部署时实现')
     }
+  }
+
+  const formatTime = (seconds: number) => {
+    const mins = Math.floor(seconds / 60)
+    const secs = Math.floor(seconds % 60)
+    const ms = Math.floor((seconds % 1) * 100)
+    return `${mins}:${secs.toString().padStart(2, '0')}.${ms.toString().padStart(2, '0')}`
   }
 
   return (
     <Box>
       <Paper sx={{ p: 3, mb: 3 }}>
         <Typography variant="h6" gutterBottom>
-          选择音频文件
+          上传音频文件
         </Typography>
         
         <Box
@@ -105,14 +148,19 @@ const AudioEditor: React.FC = () => {
             cursor: 'pointer',
             bgcolor: isDragActive ? 'action.hover' : 'background.paper',
             mb: 2,
+            transition: 'all 0.3s ease',
+            '&:hover': {
+              borderColor: 'primary.main',
+              bgcolor: 'action.hover',
+            },
           }}
         >
           <input {...getInputProps()} />
           <CloudUpload sx={{ fontSize: 48, color: 'primary.main', mb: 1 }} />
-          <Typography>
+          <Typography variant="body1">
             {isDragActive ? '放下文件以上传' : '拖拽音频文件到此处，或点击选择'}
           </Typography>
-          <Typography variant="caption" color="textSecondary">
+          <Typography variant="caption" color="textSecondary" sx={{ mt: 1, display: 'block' }}>
             支持格式：MP3, WAV, FLAC
           </Typography>
         </Box>
@@ -124,8 +172,14 @@ const AudioEditor: React.FC = () => {
         )}
 
         {error && (
-          <Alert severity="error" sx={{ mb: 2 }}>
+          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
             {error}
+          </Alert>
+        )}
+
+        {success && (
+          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
+            {success}
           </Alert>
         )}
       </Paper>
@@ -137,33 +191,50 @@ const AudioEditor: React.FC = () => {
           </Typography>
           
           <Box sx={{ mb: 2 }}>
-            <WaveformViewer audioUrl={audioUrl} onRegionUpdate={handleRegionUpdate} />
-          </Box>
-
-          <Box sx={{ display: 'flex', gap: 2, mb: 2 }}>
-            <TextField
-              label="开始时间 (秒)"
-              type="number"
-              value={startTime.toFixed(1)}
-              onChange={(e) => setStartTime(parseFloat(e.target.value))}
-              size="small"
-            />
-            <TextField
-              label="结束时间 (秒)"
-              type="number"
-              value={endTime.toFixed(1)}
-              onChange={(e) => setEndTime(parseFloat(e.target.value))}
-              size="small"
+            <WaveformViewer 
+              ref={waveformRef}
+              audioUrl={audioUrl} 
+              onRegionUpdate={handleRegionUpdate} 
             />
           </Box>
 
-          <Box sx={{ display: 'flex', gap: 1, mb: 2 }}>
+          {startTime < endTime && (
+            <Paper sx={{ p: 2, mb: 2, bgcolor: 'grey.50' }}>
+              <Typography variant="body2" gutterBottom>
+                已选择片段：
+              </Typography>
+              <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
+                <Chip 
+                  label={`${formatTime(startTime)} - ${formatTime(endTime)}`} 
+                  color="primary"
+                  size="small"
+                />
+                <Chip 
+                  label={`时长: ${formatTime(endTime - startTime)}`} 
+                  color="secondary"
+                  size="small"
+                  variant="outlined"
+                />
+              </Box>
+            </Paper>
+          )}
+
+          <Box sx={{ display: 'flex', gap: 1, mb: 2, flexWrap: 'wrap' }}>
+            <Button
+              variant="contained"
+              startIcon={<PlayArrow />}
+              onClick={handlePlayRegion}
+              disabled={startTime >= endTime}
+              color="primary"
+            >
+              播放选区
+            </Button>
             <Button
               variant="outlined"
-              startIcon={<PlayArrow />}
-              onClick={() => alert('Play selected region')}
+              startIcon={<Stop />}
+              onClick={handleStop}
             >
-              试听选区
+              停止
             </Button>
           </Box>
         </Paper>
@@ -182,8 +253,22 @@ const AudioEditor: React.FC = () => {
               label="操作类型"
               onChange={(e) => setOperation(e.target.value as 'extract' | 'delete')}
             >
-              <MenuItem value="extract">提取片段</MenuItem>
-              <MenuItem value="delete">删除片段</MenuItem>
+              <MenuItem value="extract">
+                <Box>
+                  <Typography>提取片段</Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    将选中的片段保存为新文件
+                  </Typography>
+                </Box>
+              </MenuItem>
+              <MenuItem value="delete">
+                <Box>
+                  <Typography>删除片段</Typography>
+                  <Typography variant="caption" color="textSecondary">
+                    删除选中的片段，保留其余部分
+                  </Typography>
+                </Box>
+              </MenuItem>
             </Select>
           </FormControl>
 
@@ -194,22 +279,23 @@ const AudioEditor: React.FC = () => {
               label="导出格式"
               onChange={(e) => setOutputFormat(e.target.value)}
             >
-              <MenuItem value="mp3">MP3</MenuItem>
-              <MenuItem value="wav">WAV</MenuItem>
-              <MenuItem value="flac">FLAC</MenuItem>
+              <MenuItem value="mp3">MP3 - 压缩格式，文件较小</MenuItem>
+              <MenuItem value="wav">WAV - 无损格式，文件较大</MenuItem>
+              <MenuItem value="flac">FLAC - 无损压缩，音质最佳</MenuItem>
             </Select>
           </FormControl>
 
-          <Box sx={{ display: 'flex', gap: 1 }}>
-            <Button
-              variant="contained"
-              startIcon={<ContentCut />}
-              onClick={handleProcess}
-              disabled={isProcessing || startTime >= endTime}
-            >
-              {operation === 'extract' ? '提取片段' : '删除片段'}
-            </Button>
-          </Box>
+          <Button
+            variant="contained"
+            startIcon={operation === 'extract' ? <ContentCut /> : <Delete />}
+            onClick={handleProcess}
+            disabled={isProcessing || startTime >= endTime}
+            color={operation === 'delete' ? 'error' : 'primary'}
+            fullWidth
+            size="large"
+          >
+            {operation === 'extract' ? '提取片段' : '删除片段'}
+          </Button>
         </Paper>
       )}
 
@@ -235,6 +321,8 @@ const AudioEditor: React.FC = () => {
             variant="contained"
             startIcon={<Download />}
             onClick={handleDownload}
+            color="primary"
+            size="large"
           >
             下载结果
           </Button>
