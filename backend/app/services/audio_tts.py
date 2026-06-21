@@ -3,6 +3,7 @@ import re
 import json
 import threading
 import numpy as np
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from flask import current_app
@@ -13,6 +14,7 @@ from loguru import logger
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 _tts_model_cache = {}
+_tts_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='tts')
 
 _EMOTION_RULES = [
     (['哈哈', '太好了', '太棒了', 'wow', '太开心', '太高兴', '耶'], '用兴奋开心的语气说'),
@@ -180,9 +182,7 @@ def start_tts(params):
     db.session.commit()
 
     app = current_app._get_current_object()
-    thread = threading.Thread(target=process_tts, args=(task.id, app))
-    thread.daemon = True
-    thread.start()
+    _tts_executor.submit(process_tts, task.id, app)
 
     return task.id, None
 
