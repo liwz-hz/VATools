@@ -483,27 +483,29 @@ def _align_sentences(aligner_model, audio_path, sentences, language):
     current_text = ''
     current_start = None
     current_end = 0
-    current_count = 0
+    current_len = 0
 
     for oc in orig_chars:
         ch = oc['char']
-        current_text += ch
         if oc['time']:
             if current_start is None:
                 current_start = oc['time'][0]
             current_end = oc['time'][1]
-        if not oc['is_punct']:
-            current_count += 1
 
+        is_punct = oc['is_punct']
         is_sent_end = ch in _SENTENCE_ENDS
         is_clause = ch in _CLAUSE_BREAKS
 
+        current_text += ch
+        if not is_punct:
+            current_len += 1
+
         should_split = False
-        if is_sent_end and current_count >= 2:
+        if is_sent_end and current_len >= 2:
             should_split = True
-        elif current_count >= max_chars:
+        elif current_len >= max_chars:
             should_split = True
-        elif current_count >= max_chars * 0.7 and is_clause:
+        elif current_len >= max_chars * 0.6 and is_clause:
             should_split = True
 
         if should_split and current_text.strip():
@@ -516,7 +518,7 @@ def _align_sentences(aligner_model, audio_path, sentences, language):
             seg_id += 1
             current_text = ''
             current_start = None
-            current_count = 0
+            current_len = 0
 
     if current_text.strip():
         segments.append({
@@ -526,4 +528,20 @@ def _align_sentences(aligner_model, audio_path, sentences, language):
             'text': current_text.strip(),
         })
 
-    return segments
+    merged = []
+    i = 0
+    while i < len(segments):
+        seg = segments[i]
+        text = seg['text']
+        if text and text[0] in _CLAUSE_BREAKS and merged:
+            merged[-1]['text'] += text
+            merged[-1]['end'] = seg['end']
+            i += 1
+            continue
+        merged.append(seg)
+        i += 1
+
+    for idx, seg in enumerate(merged, 1):
+        seg['id'] = idx
+
+    return merged
