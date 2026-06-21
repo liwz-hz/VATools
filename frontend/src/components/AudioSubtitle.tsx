@@ -360,6 +360,9 @@ const AudioSubtitle: React.FC = () => {
                     <TableCell>
                       <TextField
                         fullWidth
+                        multiline
+                        minRows={1}
+                        maxRows={4}
                         size="small"
                         value={seg.text}
                         onChange={(e) => handleSegmentChange(index, 'text', e.target.value)}

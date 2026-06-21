@@ -145,6 +145,66 @@ def test_start_subtitle_creates_task(app):
                 os.unlink(temp_path)
 
 
+def test_split_text_to_sentences():
+    from app.services.audio_subtitle import _split_text_to_sentences
+    text = "你好世界。这是第二句！真的吗？是的。"
+    result = _split_text_to_sentences(text)
+    assert len(result) == 4
+    assert result[0] == "你好世界。"
+    assert result[1] == "这是第二句！"
+    assert result[2] == "真的吗？"
+    assert result[3] == "是的。"
+
+
+def test_split_text_to_sentences_english():
+    from app.services.audio_subtitle import _split_text_to_sentences
+    text = "Hello world. This is sentence two! Really? Yes."
+    result = _split_text_to_sentences(text)
+    assert len(result) == 4
+
+
+def test_distribute_timestamps():
+    from app.services.audio_subtitle import _distribute_timestamps
+    sentences = ["你好世界。", "这是第二句！", "真的吗？"]
+    result = _distribute_timestamps(sentences, 0.0, 10.0)
+    assert len(result) == 3
+    assert result[0]['start'] == 0.0
+    assert result[0]['end'] > 0
+    assert result[-1]['end'] == 10.0
+    assert result[0]['text'] == "你好世界。"
+
+
+def test_parse_result_splits_long_text():
+    from app.services.audio_subtitle import _parse_result
+
+    class FakeResult:
+        text = "你好世界。这是第二句！真的吗？"
+        segments = [
+            {'text': "你好世界。这是第二句！真的吗？", 'start': 0.0, 'end': 10.0}
+        ]
+
+    result = _parse_result(FakeResult())
+    assert len(result) == 3
+    assert result[0]['text'] == "你好世界。"
+    assert result[0]['start'] == 0.0
+    assert result[0]['end'] > 0
+    assert result[-1]['end'] == 10.0
+
+
+def test_parse_result_keeps_short_text_intact():
+    from app.services.audio_subtitle import _parse_result
+
+    class FakeResult:
+        text = "短句"
+        segments = [
+            {'text': "短句", 'start': 0.0, 'end': 5.0}
+        ]
+
+    result = _parse_result(FakeResult())
+    assert len(result) == 1
+    assert result[0]['text'] == "短句"
+
+
 def test_subtitle_api_missing_file_id(client):
     response = client.post('/api/audio/subtitle',
                           json={},

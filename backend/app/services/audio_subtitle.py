@@ -262,31 +262,88 @@ def _load_model(model_path):
     return model
 
 
-def _parse_result(result):
+import re
+
+
+def _split_text_to_sentences(text):
+    sentences = re.split(r'(?<=[。！？\.\!\?\n])\s*', text)
+    sentences = [s.strip() for s in sentences if s.strip()]
+    return sentences
+
+
+def _distribute_timestamps(sentences, start, end):
+    if not sentences:
+        return []
+    total_chars = sum(len(s) for s in sentences)
+    if total_chars == 0:
+        return []
+    duration = end - start
     segments = []
+    current_time = start
+    for i, sentence in enumerate(sentences):
+        ratio = len(sentence) / total_chars
+        seg_duration = duration * ratio
+        seg_end = current_time + seg_duration
+        if i == len(sentences) - 1:
+            seg_end = end
+        segments.append({
+            'id': i + 1,
+            'start': round(current_time, 3),
+            'end': round(seg_end, 3),
+            'text': sentence,
+        })
+        current_time = seg_end
+    return segments
+
+
+def _parse_result(result):
+    raw_segments = []
 
     if hasattr(result, 'segments') and result.segments:
-        for i, seg in enumerate(result.segments):
+        for seg in result.segments:
             if isinstance(seg, dict):
-                segments.append({
-                    'id': i + 1,
+                raw_segments.append({
                     'start': seg.get('start', 0),
                     'end': seg.get('end', 0),
                     'text': seg.get('text', '').strip(),
                 })
             else:
-                segments.append({
-                    'id': i + 1,
+                raw_segments.append({
                     'start': getattr(seg, 'start', 0) or getattr(seg, 'start_time', 0) or 0,
                     'end': getattr(seg, 'end', 0) or getattr(seg, 'end_time', 0) or 0,
                     'text': (getattr(seg, 'text', '') or '').strip(),
                 })
     elif hasattr(result, 'text'):
-        segments.append({
-            'id': 1,
+        raw_segments.append({
             'start': 0,
             'end': 0,
             'text': result.text.strip(),
         })
+
+    segments = []
+    seg_id = 1
+    for raw in raw_segments:
+        text = raw['text']
+        start = raw['start']
+        end = raw['end']
+        duration = end - start
+
+        if duration > 0 and len(text) > 10:
+            sentences = _split_text_to_sentences(text)
+            if len(sentences) > 1:
+                sub_segments = _distribute_timestamps(sentences, start, end)
+                for s in sub_segments:
+                    s['id'] = seg_id
+                    seg_id += 1
+                segments.extend(sub_segments)
+                continue
+
+        segments.append({
+            'id': seg_id,
+            'start': start,
+            'end': end,
+            'text': text,
+        })
+        seg_id += 1
 
     return segments
