@@ -1,10 +1,8 @@
 import os
 import re
 import json
-import atexit
 import threading
 import numpy as np
-from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
 from pathlib import Path
 from flask import current_app
@@ -15,8 +13,6 @@ from loguru import logger
 from sqlalchemy.orm import scoped_session, sessionmaker
 
 _tts_model_cache = {}
-_tts_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='tts')
-atexit.register(_tts_executor.shutdown, wait=False)
 
 _EMOTION_RULES = [
     (['哈哈', '太好了', '太棒了', 'wow', '太开心', '太高兴', '耶'], '用兴奋开心的语气说'),
@@ -94,22 +90,12 @@ def _load_tts_model(model_name):
     if not model_path:
         raise Exception(f"未找到 TTS 模型: {model_name}\n请检查模型目录配置: {_get_tts_model_dir()}")
 
-    if model_path in _tts_model_cache:
-        return _tts_model_cache[model_path]
-
     from mlx_audio.tts.utils import load_model
     model = load_model(model_path)
-    _tts_model_cache[model_path] = model
     return model
 
 
 def get_supported_speakers():
-    try:
-        model = _load_tts_model(Config.TTS_CUSTOM_VOICE_MODEL)
-        if hasattr(model, 'supported_speakers'):
-            return model.supported_speakers
-    except Exception:
-        pass
     return _DEFAULT_SPEAKERS
 
 
@@ -135,7 +121,7 @@ def get_tts_status():
 
     mlx_audio_available = False
     try:
-        import mlx_audio
+        from mlx_audio.tts.utils import load_model as _check_load
         mlx_audio_available = True
     except ImportError:
         pass
@@ -184,7 +170,9 @@ def start_tts(params):
     db.session.commit()
 
     app = current_app._get_current_object()
-    _tts_executor.submit(process_tts, task.id, app)
+    thread = threading.Thread(target=process_tts, args=(task.id, app))
+    thread.daemon = True
+    thread.start()
 
     return task.id, None
 
