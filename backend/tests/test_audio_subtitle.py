@@ -143,3 +143,61 @@ def test_start_subtitle_creates_task(app):
         finally:
             if os.path.exists(temp_path):
                 os.unlink(temp_path)
+
+
+def test_subtitle_api_missing_file_id(client):
+    response = client.post('/api/audio/subtitle',
+                          json={},
+                          content_type='application/json')
+    assert response.status_code == 400
+    data = response.get_json()
+    assert 'error' in data
+
+
+def test_subtitle_api_success(client, app):
+    with app.app_context():
+        with tempfile.NamedTemporaryFile(mode='w', suffix='.mp3', delete=False) as f:
+            temp_path = f.name
+
+        try:
+            audio_file = File(
+                filename='test.mp3',
+                file_path=temp_path,
+                file_type='audio',
+                file_size=1000
+            )
+            db.session.add(audio_file)
+            db.session.commit()
+            file_id = audio_file.id
+        finally:
+            pass
+
+    response = client.post('/api/audio/subtitle',
+                          json={'audio_file_id': file_id},
+                          content_type='application/json')
+    assert response.status_code == 201
+    data = response.get_json()
+    assert 'task_id' in data
+
+    if os.path.exists(temp_path):
+        os.unlink(temp_path)
+
+
+def test_subtitle_status_api(client):
+    response = client.get('/api/audio/subtitle/status')
+    assert response.status_code == 200
+    data = response.get_json()
+    assert 'models' in data
+    assert 'mlx_audio_available' in data
+
+
+def test_subtitle_result_not_found(client):
+    response = client.get('/api/audio/subtitle/999/result')
+    assert response.status_code == 404
+
+
+def test_subtitle_export_missing_task(client):
+    response = client.post('/api/audio/subtitle/999/export',
+                          json={'format': 'srt'},
+                          content_type='application/json')
+    assert response.status_code == 404
