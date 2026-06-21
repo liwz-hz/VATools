@@ -11,19 +11,17 @@ import {
   InputLabel,
   LinearProgress,
   Alert,
-  TextField,
   Chip,
 } from '@mui/material'
-import { 
-  CloudUpload, 
-  PlayArrow, 
-  Pause, 
-  Stop, 
-  ContentCut, 
-  Delete, 
-  Download 
+import {
+  CloudUpload,
+  PlayArrow,
+  Stop,
+  ContentCut,
+  Delete,
+  Download
 } from '@mui/icons-material'
-import { uploadFile, clipAudio, downloadFile } from '../services/api'
+import { uploadFile, clipAudio, getTask } from '../services/api'
 import WaveformViewer, { WaveformViewerRef } from './WaveformViewer'
 
 const AudioEditor: React.FC = () => {
@@ -37,8 +35,8 @@ const AudioEditor: React.FC = () => {
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState<string | null>(null)
-  const [completedFile, setCompletedFile] = useState<any>(null)
-  
+  const [completedFile, setCompletedFile] = useState<{ filename: string; path: string } | null>(null)
+
   const waveformRef = useRef<WaveformViewerRef>(null)
 
   const onDrop = useCallback(async (acceptedFiles: any[]) => {
@@ -69,10 +67,10 @@ const AudioEditor: React.FC = () => {
     maxFiles: 1,
   })
 
-  const handleRegionUpdate = (start: number, end: number) => {
+  const handleRegionUpdate = useCallback((start: number, end: number) => {
     setStartTime(start)
     setEndTime(end)
-  }
+  }, [])
 
   const handlePlayRegion = () => {
     if (waveformRef.current && startTime < endTime) {
@@ -103,24 +101,46 @@ const AudioEditor: React.FC = () => {
     setSuccess(null)
 
     try {
-      await clipAudio(uploadedFile.id, operation, startTime, endTime, outputFormat)
-      
-      // 模拟进度
-      setProgress(100)
-      setIsProcessing(false)
-      setSuccess(`${operation === 'extract' ? '片段提取' : '片段删除'}成功！`)
-      setCompletedFile({
-        filename: `edited_${uploadedFile.filename}`,
-      })
+      const result = await clipAudio(uploadedFile.id, operation, startTime, endTime, outputFormat)
+      const taskId = result.task_id
+
+      const poll = setInterval(async () => {
+        try {
+          const task = await getTask(taskId)
+          setProgress(task.progress || 0)
+
+          if (task.status === 'completed') {
+            clearInterval(poll)
+            setIsProcessing(false)
+            setProgress(100)
+            setSuccess(`${operation === 'extract' ? '片段提取' : '片段删除'}成功！`)
+            setCompletedFile({
+              filename: task.output_file?.split('/').pop() || `edited_${uploadedFile.filename}`,
+              path: task.output_file || '',
+            })
+          } else if (task.status === 'failed') {
+            clearInterval(poll)
+            setIsProcessing(false)
+            setError(task.error_message || '处理失败')
+          }
+        } catch {
+          clearInterval(poll)
+          setIsProcessing(false)
+          setError('查询任务状态失败')
+        }
+      }, 1000)
     } catch (err: any) {
       setError(err.response?.data?.error || '处理失败')
       setIsProcessing(false)
     }
   }
 
-  const handleDownload = async () => {
-    if (completedFile) {
-      alert('下载功能将在实际部署时实现')
+  const handleDownload = () => {
+    if (completedFile?.path) {
+      const link = document.createElement('a')
+      link.href = `http://localhost:5001/api/files/serve?path=${encodeURIComponent(completedFile.path)}&download=1`
+      link.download = completedFile.filename
+      link.click()
     }
   }
 
@@ -137,7 +157,7 @@ const AudioEditor: React.FC = () => {
         <Typography variant="h6" gutterBottom>
           上传音频文件
         </Typography>
-        
+
         <Box
           {...getRootProps()}
           sx={{
@@ -189,12 +209,12 @@ const AudioEditor: React.FC = () => {
           <Typography variant="h6" gutterBottom>
             波形显示与片段选择
           </Typography>
-          
+
           <Box sx={{ mb: 2 }}>
-            <WaveformViewer 
+            <WaveformViewer
               ref={waveformRef}
-              audioUrl={audioUrl} 
-              onRegionUpdate={handleRegionUpdate} 
+              audioUrl={audioUrl}
+              onRegionUpdate={handleRegionUpdate}
             />
           </Box>
 
@@ -204,13 +224,13 @@ const AudioEditor: React.FC = () => {
                 已选择片段：
               </Typography>
               <Box sx={{ display: 'flex', gap: 1, alignItems: 'center' }}>
-                <Chip 
-                  label={`${formatTime(startTime)} - ${formatTime(endTime)}`} 
+                <Chip
+                  label={`${formatTime(startTime)} - ${formatTime(endTime)}`}
                   color="primary"
                   size="small"
                 />
-                <Chip 
-                  label={`时长: ${formatTime(endTime - startTime)}`} 
+                <Chip
+                  label={`时长: ${formatTime(endTime - startTime)}`}
                   color="secondary"
                   size="small"
                   variant="outlined"
