@@ -54,14 +54,19 @@ const ImageSegmentation: React.FC = () => {
   const [extractedImages, setExtractedImages] = useState<string[]>([])
 
   useEffect(() => {
-    checkStatus()
+    checkStatusAndAutoLoad()
   }, [])
 
-  const checkStatus = async () => {
+  const checkStatusAndAutoLoad = async () => {
     try {
       const status = await getSAMStatus()
       setModelAvailable(status.available)
       setModelLoaded(status.loaded)
+      
+      // Auto-load model if available but not loaded
+      if (status.available && !status.loaded) {
+        handleLoadModel()
+      }
     } catch (err) {
       console.error('Failed to check SAM status:', err)
     }
@@ -256,14 +261,23 @@ const ImageSegmentation: React.FC = () => {
         )}
 
         {modelAvailable && !modelLoaded && (
-          <Button
-            variant="outlined"
-            onClick={handleLoadModel}
-            disabled={isProcessing}
-            sx={{ mb: 2 }}
-          >
-            加载 SAM 模型
-          </Button>
+          <Box sx={{ mb: 2 }}>
+            {isProcessing ? (
+              <Box>
+                <LinearProgress sx={{ mb: 1 }} />
+                <Typography variant="body2" color="text.secondary">
+                  正在加载 SAM 模型（首次约需8秒）...
+                </Typography>
+              </Box>
+            ) : (
+              <Button
+                variant="outlined"
+                onClick={handleLoadModel}
+              >
+                加载 SAM 模型
+              </Button>
+            )}
+          </Box>
         )}
 
         {modelLoaded && (
@@ -301,8 +315,22 @@ const ImageSegmentation: React.FC = () => {
                 ? '描述要检测的物体，如：a person, a cat, a car, clothing'
                 : '描述要保留的物体（背景将被移除），如：a person'
             }
-            sx={{ mb: 2 }}
+            sx={{ mb: 1 }}
           />
+
+          <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap', mb: 2 }}>
+            {['a person', 'a cat', 'a dog', 'a car', 'clothing', 'a phone', 'a cup', 'a book'].map((p) => (
+              <Chip
+                key={p}
+                label={p}
+                size="small"
+                variant={prompt === p ? 'filled' : 'outlined'}
+                color={prompt === p ? 'primary' : 'default'}
+                onClick={() => setPrompt(p)}
+                sx={{ cursor: 'pointer' }}
+              />
+            ))}
+          </Box>
 
           <Button
             variant="contained"
