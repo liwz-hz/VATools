@@ -99,6 +99,7 @@ const AudioEditor: React.FC = () => {
     setProgress(0)
     setError(null)
     setSuccess(null)
+    setCompletedFile(null)
 
     try {
       const result = await clipAudio(uploadedFile.id, operation, startTime, endTime, outputFormat)
@@ -260,7 +261,7 @@ const AudioEditor: React.FC = () => {
         </Paper>
       )}
 
-      {uploadedFile && !isProcessing && !completedFile && (
+      {uploadedFile && !isProcessing && (
         <Paper sx={{ p: 3, mb: 3 }}>
           <Typography variant="h6" gutterBottom>
             操作设置
