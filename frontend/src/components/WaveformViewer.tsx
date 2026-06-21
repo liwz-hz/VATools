@@ -73,17 +73,19 @@ const WaveformViewer = forwardRef<WaveformViewerRef, WaveformViewerProps>(
 
       regions.on('region-created', (region: any) => {
         setHasRegion(true)
+        region.setOptions({ resize: true, drag: true })
+
         const el = region.element as HTMLElement
-        el.style.borderLeft = '4px solid #1976d2'
-        el.style.borderRight = '4px solid #1976d2'
+        el.style.borderLeft = '6px solid #1976d2'
+        el.style.borderRight = '6px solid #1976d2'
         el.style.cursor = 'grab'
 
         const leftHandle = document.createElement('div')
-        leftHandle.style.cssText = 'position:absolute;left:-6px;top:0;bottom:0;width:12px;cursor:ew-resize;z-index:10;background:linear-gradient(90deg,#1976d2,#1565c0);border-radius:3px 0 0 3px;'
+        leftHandle.style.cssText = 'position:absolute;left:-8px;top:50%;transform:translateY(-50%);width:10px;height:32px;pointer-events:none;z-index:10;background:#1976d2;border-radius:3px 0 0 3px;box-shadow:-1px 0 3px rgba(0,0,0,0.3);'
         el.appendChild(leftHandle)
 
         const rightHandle = document.createElement('div')
-        rightHandle.style.cssText = 'position:absolute;right:-6px;top:0;bottom:0;width:12px;cursor:ew-resize;z-index:10;background:linear-gradient(90deg,#1565c0,#1976d2);border-radius:0 3px 3px 0;'
+        rightHandle.style.cssText = 'position:absolute;right:-8px;top:50%;transform:translateY(-50%);width:10px;height:32px;pointer-events:none;z-index:10;background:#1976d2;border-radius:0 3px 3px 0;box-shadow:1px 0 3px rgba(0,0,0,0.3);'
         el.appendChild(rightHandle)
 
         onRegionUpdateRef.current?.(region.start, region.end)
