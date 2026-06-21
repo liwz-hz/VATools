@@ -136,15 +136,49 @@ def get_tts_status():
     }
 
 
-def _concatenate_audio(audio_arrays, sample_rate, gap_seconds=0.3):
-    gap_samples = int(gap_seconds * sample_rate)
-    silence = np.zeros(gap_samples, dtype=np.float32)
-    parts = []
-    for i, arr in enumerate(audio_arrays):
-        parts.append(arr)
-        if i < len(audio_arrays) - 1:
-            parts.append(silence)
-    return np.concatenate(parts)
+def _trim_silence(audio, sample_rate, threshold=0.01, min_silence_duration=0.1):
+    """Trim trailing silence from audio segment."""
+    min_samples = int(min_silence_duration * sample_rate)
+    
+    end_idx = len(audio)
+    for i in range(len(audio) - 1, -1, -1):
+        if abs(audio[i]) > threshold:
+            end_idx = min(i + min_samples, len(audio))
+            break
+    
+    return audio[:end_idx]
+
+
+def _get_pause_duration(sentence):
+    """Calculate pause duration based on sentence punctuation."""
+    stripped = sentence.rstrip()
+    if stripped.endswith('...'):
+        return 1.2
+    elif stripped.endswith('！') or stripped.endswith('!'):
+        return 0.8
+    elif stripped.endswith('？') or stripped.endswith('?'):
+        return 0.6
+    elif stripped.endswith('。') or stripped.endswith('.'):
+        return 0.5
+    else:
+        return 0.3
+
+
+def _concatenate_audio(audio_segments, pause_durations, sample_rate):
+    """Concatenate audio segments with variable pauses and silence trimming."""
+    if not audio_segments:
+        return np.array([], dtype=np.float32)
+    
+    result = []
+    for i, (audio, pause) in enumerate(zip(audio_segments, pause_durations)):
+        trimmed = _trim_silence(audio, sample_rate)
+        result.append(trimmed)
+        
+        if i < len(audio_segments) - 1 and pause > 0:
+            silence_samples = int(pause * sample_rate)
+            result.append(np.zeros(silence_samples, dtype=np.float32))
+    
+    return np.concatenate(result)
 
 
 def start_tts(params):
@@ -225,6 +259,7 @@ def process_tts(task_id, app):
 
             total = len(sentence_emotions)
             audio_segments = []
+            pause_durations = []
 
             ref_audio_path = None
             ref_text = None
@@ -268,6 +303,7 @@ def process_tts(task_id, app):
                 for result in results:
                     if hasattr(result, 'audio') and result.audio is not None:
                         audio_segments.append(np.array(result.audio, dtype=np.float32))
+                        pause_durations.append(_get_pause_duration(sentence))
 
             socketio.emit('task_progress', {
                 'task_id': task.id,
@@ -279,7 +315,7 @@ def process_tts(task_id, app):
                 raise Exception("未生成任何音频")
 
             sample_rate = model.sample_rate
-            final_audio = _concatenate_audio(audio_segments, sample_rate, gap_seconds=0.3)
+            final_audio = _concatenate_audio(audio_segments, pause_durations, sample_rate)
 
             timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
             output_dir = os.path.join(Config.WORKSPACE_DIR, 'tts')

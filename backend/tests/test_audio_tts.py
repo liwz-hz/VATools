@@ -101,14 +101,47 @@ def test_resolve_tts_model_path_nonexistent():
 
 def test_concatenate_audio():
     from app.services.audio_tts import _concatenate_audio
-    a1 = np.ones(24000, dtype=np.float32)
-    a2 = np.ones(24000, dtype=np.float32) * 0.5
-    result = _concatenate_audio([a1, a2], 24000, 0.3)
-    gap_samples = int(0.3 * 24000)
-    expected_len = len(a1) + gap_samples + len(a2)
-    assert len(result) == expected_len
-    assert result[0] == 1.0
-    assert result[len(a1)] == 0.0
+    # Create audio with some trailing silence
+    a1 = np.concatenate([
+        np.ones(20000, dtype=np.float32) * 0.8,  # speech
+        np.zeros(4000, dtype=np.float32)           # trailing silence
+    ])
+    a2 = np.concatenate([
+        np.ones(18000, dtype=np.float32) * 0.6,  # speech
+        np.zeros(6000, dtype=np.float32)           # trailing silence
+    ])
+    
+    # pause_durations should match audio_segments length
+    result = _concatenate_audio([a1, a2], [0.5, 0.3], 24000)
+    
+    # After trimming:
+    # a1: 20000 (speech) + 2400 (min silence) = 22400 samples
+    # gap: 12000 samples (0.5s)
+    # a2: 18000 (speech) + 2400 (min silence) = 20400 samples
+    # Total: 22400 + 12000 + 20400 = 54800 samples
+    assert len(result) < len(a1) + len(a2) + int(0.5 * 24000)  # Less than untrimmed
+    assert len(result) > 50000  # But still substantial
+    assert result[0] == 0.8  # First sample from a1
+
+
+def test_trim_silence():
+    from app.services.audio_tts import _trim_silence
+    audio = np.concatenate([
+        np.ones(1000, dtype=np.float32) * 0.5,
+        np.zeros(5000, dtype=np.float32)
+    ])
+    trimmed = _trim_silence(audio, 24000, threshold=0.01, min_silence_duration=0.1)
+    assert len(trimmed) < len(audio)
+    assert len(trimmed) >= 1000
+
+
+def test_get_pause_duration():
+    from app.services.audio_tts import _get_pause_duration
+    assert _get_pause_duration('你好。') == 0.5
+    assert _get_pause_duration('真的吗？') == 0.6
+    assert _get_pause_duration('太好了！') == 0.8
+    assert _get_pause_duration('嗯...') == 1.2
+    assert _get_pause_duration('继续') == 0.3
 
 
 def test_start_tts_missing_text(app):
