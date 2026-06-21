@@ -1,6 +1,7 @@
 import os
 import re
 import json
+import atexit
 import threading
 import numpy as np
 from concurrent.futures import ThreadPoolExecutor
@@ -15,6 +16,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 
 _tts_model_cache = {}
 _tts_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix='tts')
+atexit.register(_tts_executor.shutdown, wait=False)
 
 _EMOTION_RULES = [
     (['哈哈', '太好了', '太棒了', 'wow', '太开心', '太高兴', '耶'], '用兴奋开心的语气说'),
