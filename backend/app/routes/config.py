@@ -24,6 +24,9 @@ DEFAULT_CONFIG = {
     'separation_model_dir': AppConfig.SEPARATION_MODEL_DIR or '',
     'asr_model_dir': AppConfig.ASR_MODEL_DIR,
     'asr_default_model': AppConfig.ASR_DEFAULT_MODEL,
+    'tts_model_dir': AppConfig.TTS_MODEL_DIR,
+    'tts_custom_voice_model': AppConfig.TTS_CUSTOM_VOICE_MODEL,
+    'tts_base_model': AppConfig.TTS_BASE_MODEL,
 }
 
 @bp.route('', methods=['GET'])

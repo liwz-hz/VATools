@@ -9,6 +9,12 @@ from app.services.audio_subtitle import (
     get_asr_status,
     generate_subtitle_file,
 )
+from app.services.audio_tts import (
+    start_tts,
+    get_tts_status,
+    get_supported_speakers,
+    analyze_emotion,
+)
 from app.models import Task
 from app.utils.ffmpeg_utils import validate_audio_format
 from loguru import logger
@@ -200,3 +206,70 @@ def subtitle_export(task_id):
         as_attachment=True,
         download_name=f'subtitle.{export_format}'
     )
+
+
+@bp.route('/tts', methods=['POST'])
+def tts():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'error': 'Request body is required'}), 400
+
+    text = data.get('text', '').strip()
+    if not text:
+        return jsonify({'error': 'text is required'}), 400
+
+    mode = data.get('mode', 'custom_voice')
+    speaker = data.get('speaker', 'vivian')
+    ref_audio_id = data.get('ref_audio_id')
+    ref_text = data.get('ref_text')
+    emotions = data.get('emotions')
+    speed = data.get('speed', 1.0)
+    temperature = data.get('temperature', 0.9)
+    language = data.get('language', 'auto')
+
+    params = {
+        'text': text,
+        'mode': mode,
+        'speaker': speaker,
+        'ref_audio_id': ref_audio_id,
+        'ref_text': ref_text,
+        'emotions': emotions,
+        'speed': speed,
+        'temperature': temperature,
+        'language': language,
+    }
+
+    task_id, error = start_tts(params)
+
+    if error:
+        return jsonify({'error': error}), 400
+
+    return jsonify({'task_id': task_id, 'status': 'pending'}), 201
+
+
+@bp.route('/tts/status', methods=['GET'])
+def tts_status():
+    status = get_tts_status()
+    return jsonify(status)
+
+
+@bp.route('/tts/speakers', methods=['GET'])
+def tts_speakers():
+    speakers = get_supported_speakers()
+    return jsonify({'speakers': speakers})
+
+
+@bp.route('/tts/analyze', methods=['POST'])
+def tts_analyze():
+    data = request.get_json()
+
+    if not data:
+        return jsonify({'error': 'Request body is required'}), 400
+
+    text = data.get('text', '').strip()
+    if not text:
+        return jsonify({'error': 'text is required'}), 400
+
+    emotions = analyze_emotion(text)
+    return jsonify({'emotions': emotions})

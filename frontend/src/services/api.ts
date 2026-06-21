@@ -170,3 +170,33 @@ export const exportSubtitle = async (taskId: number, format: string, segments?: 
   )
   return response
 }
+
+export const startTTS = async (params: {
+  text: string
+  mode: string
+  speaker?: string
+  ref_audio_id?: number
+  ref_text?: string
+  emotions?: Array<{sentence: string, instruct: string}>
+  speed?: number
+  temperature?: number
+  language?: string
+}) => {
+  const response = await api.post('/audio/tts', params)
+  return response.data
+}
+
+export const getTTSStatus = async () => {
+  const response = await api.get('/audio/tts/status')
+  return response.data
+}
+
+export const getTTSSpeakers = async () => {
+  const response = await api.get('/audio/tts/speakers')
+  return response.data
+}
+
+export const analyzeTTSEmotion = async (text: string) => {
+  const response = await api.post('/audio/tts/analyze', { text })
+  return response.data
+}
