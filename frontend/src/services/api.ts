@@ -253,3 +253,39 @@ export const removeImageBackground = async (imageFile: File, prompt?: string) =>
   })
   return response.data
 }
+
+// BiRefNet API functions
+export const getBirefnetModels = async () => {
+  const response = await api.get('/birefnet/models')
+  return response.data
+}
+
+export const loadBirefnetModel = async (modelType: string) => {
+  const response = await api.post('/birefnet/load-model', { model_type: modelType })
+  return response.data
+}
+
+export const segmentBirefnetImage = async (imageFile: File, modelType: string = 'general') => {
+  const formData = new FormData()
+  formData.append('image', imageFile)
+  formData.append('model_type', modelType)
+  const response = await api.post('/birefnet/segment', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data
+}
+
+export const removeBirefnetBackground = async (imageFile: File, modelType: string = 'general') => {
+  const formData = new FormData()
+  formData.append('image', imageFile)
+  formData.append('model_type', modelType)
+  const response = await api.post('/birefnet/remove-background', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    responseType: 'blob',
+  })
+  return response.data
+}

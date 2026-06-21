@@ -17,12 +17,13 @@ def create_app(config_class=Config):
     db.init_app(app)
     socketio.init_app(app)
     
-    from app.routes import files, audio, tasks, config as config_routes, image
+    from app.routes import files, audio, tasks, config as config_routes, image, birefnet
     app.register_blueprint(files.bp)
     app.register_blueprint(audio.bp)
     app.register_blueprint(tasks.bp)
     app.register_blueprint(config_routes.bp)
     app.register_blueprint(image.bp)
+    app.register_blueprint(birefnet.birefnet_bp)
     
     config_class.init_app()
     

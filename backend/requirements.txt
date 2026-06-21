@@ -31,3 +31,8 @@ mlx-audio==0.4.4
 mlx-vlm>=0.4.3
 opencv-python>=4.8.0
 Pillow>=10.0.0
+
+# 图像分割 (BiRefNet)
+torchvision>=0.17.0
+kornia>=0.7.0
+timm>=0.9.0

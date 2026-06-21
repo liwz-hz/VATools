@@ -41,6 +41,8 @@ class Config:
     SAM_MODEL_DIR = '/Users/lwz/.cache/modelscope/hub/models/mlx-community/sam3___1-bf16'
     SAM_SCORE_THRESHOLD = 0.3
     
+    BIREFNET_MODEL_DIR = '/Users/lwz/.cache/modelscope/hub/models/birefnet'
+    
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{BASE_DIR / "vatooldb.db"}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
