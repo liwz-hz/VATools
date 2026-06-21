@@ -21,7 +21,9 @@ DEFAULT_CONFIG = {
     'separation_model': AppConfig.SEPARATION_MODEL,
     'acceleration_type': AppConfig.ACCELERATION_TYPE,
     'separation_output_format': AppConfig.SEPARATION_OUTPUT_FORMAT,
-    'separation_model_dir': AppConfig.SEPARATION_MODEL_DIR or ''
+    'separation_model_dir': AppConfig.SEPARATION_MODEL_DIR or '',
+    'asr_model_dir': AppConfig.ASR_MODEL_DIR,
+    'asr_default_model': AppConfig.ASR_DEFAULT_MODEL,
 }
 
 @bp.route('', methods=['GET'])

@@ -23,3 +23,6 @@ eventlet>=0.41.0
 
 # 日志
 loguru==0.7.2
+
+# ASR语音识别
+mlx-audio==0.4.4

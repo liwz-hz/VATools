@@ -142,3 +142,31 @@ export const validateModelDir = async (modelDir: string) => {
   const response = await api.post('/config/models/validate', { model_dir: modelDir })
   return response.data
 }
+
+export const startSubtitle = async (audioFileId: number, model?: string, language?: string) => {
+  const response = await api.post('/audio/subtitle', {
+    audio_file_id: audioFileId,
+    model,
+    language: language || 'auto',
+  })
+  return response.data
+}
+
+export const getSubtitleStatus = async () => {
+  const response = await api.get('/audio/subtitle/status')
+  return response.data
+}
+
+export const getSubtitleResult = async (taskId: number) => {
+  const response = await api.get(`/audio/subtitle/${taskId}/result`)
+  return response.data
+}
+
+export const exportSubtitle = async (taskId: number, format: string, segments?: any[]) => {
+  const response = await api.post(
+    `/audio/subtitle/${taskId}/export`,
+    { format, segments },
+    { responseType: 'blob' }
+  )
+  return response
+}

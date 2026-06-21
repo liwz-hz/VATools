@@ -29,6 +29,9 @@ class Config:
     UVR_MODEL_DIR = '/Applications/Ultimate Vocal Remover.app/Contents/Resources/models'
     SEPARATION_MODEL_DIR = UVR_MODEL_DIR
     
+    ASR_MODEL_DIR = '/Users/lwz/.cache/modelscope/hub/models/mlx-community'
+    ASR_DEFAULT_MODEL = 'Qwen3-ASR-1.7B-8bit'
+    
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{BASE_DIR / "vatooldb.db"}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     
