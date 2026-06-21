@@ -4,6 +4,7 @@ import { CssBaseline, AppBar, Toolbar, Typography, Container, Tabs, Tab, Box } f
 import AudioExtractor from './components/AudioExtractor'
 import AudioEditor from './components/AudioEditor'
 import AudioSeparator from './components/AudioSeparator'
+import AudioSubtitle from './components/AudioSubtitle'
 import Settings from './components/Settings'
 
 const lightTheme = createTheme({
@@ -44,6 +45,7 @@ function App() {
             <Tab label="音频提取" />
             <Tab label="音频编辑" />
             <Tab label="音源分离" />
+            <Tab label="自动字幕" />
             <Tab label="设置" />
           </Tabs>
         </Box>
@@ -51,7 +53,8 @@ function App() {
           {currentTab === 0 && <AudioExtractor />}
           {currentTab === 1 && <AudioEditor />}
           {currentTab === 2 && <AudioSeparator />}
-          {currentTab === 3 && <Settings />}
+          {currentTab === 3 && <AudioSubtitle />}
+          {currentTab === 4 && <Settings />}
         </Box>
       </Container>
     </ThemeProvider>

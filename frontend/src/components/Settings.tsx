@@ -21,7 +21,7 @@ import {
   ListItemText,
 } from '@mui/material'
 import { Save, Restore, Folder, Search, CheckCircle, ExpandMore } from '@mui/icons-material'
-import { getConfig, updateConfig, resetConfig, scanModels, validateModelDir, getSeparationStatus } from '../services/api'
+import { getConfig, updateConfig, resetConfig, scanModels, validateModelDir, getSeparationStatus, getSubtitleStatus } from '../services/api'
 
 interface EngineStatus {
   name: string
@@ -43,10 +43,12 @@ const Settings: React.FC = () => {
   const [foundModels, setFoundModels] = useState<any>(null)
   const [modelValidation, setModelValidation] = useState<any>(null)
   const [engineStatus, setEngineStatus] = useState<Record<string, EngineStatus>>({})
+  const [asrModels, setAsrModels] = useState<Record<string, any>>({})
 
   useEffect(() => {
     loadConfig()
     loadEngineStatus()
+    loadAsrStatus()
   }, [])
 
   const loadConfig = async () => {
@@ -64,6 +66,15 @@ const Settings: React.FC = () => {
       setEngineStatus(status.engines || {})
     } catch (err) {
       console.error('Failed to load engine status:', err)
+    }
+  }
+
+  const loadAsrStatus = async () => {
+    try {
+      const status = await getSubtitleStatus()
+      setAsrModels(status.models || {})
+    } catch (err) {
+      console.error('Failed to load ASR status:', err)
     }
   }
 
@@ -450,6 +461,55 @@ const Settings: React.FC = () => {
                 <MenuItem value="wav">WAV</MenuItem>
               </Select>
             </FormControl>
+          </Grid>
+        </Grid>
+      </Paper>
+
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          ASR 语音识别设置
+        </Typography>
+
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="ASR 模型目录路径"
+              placeholder="/Users/lwz/.cache/modelscope/hub/models/mlx-community"
+              value={config.asr_model_dir || ''}
+              onChange={(e) => handleChange('asr_model_dir', e.target.value)}
+              helperText="包含 Qwen3-ASR 等模型的目录"
+              InputProps={{
+                startAdornment: <Folder sx={{ mr: 1, color: 'action.active' }} />
+              }}
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <Typography variant="body2" color="text.secondary" gutterBottom>
+              检测到的 ASR 模型:
+            </Typography>
+            <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+              {Object.keys(asrModels).length > 0 ? (
+                Object.keys(asrModels).map((name) => (
+                  <Chip key={name} label={name} size="small" color="primary" />
+                ))
+              ) : (
+                <Typography variant="body2" color="text.disabled">
+                  未检测到 ASR 模型
+                </Typography>
+              )}
+            </Box>
+          </Grid>
+
+          <Grid item xs={12}>
+            <Button
+              variant="outlined"
+              startIcon={<Search />}
+              onClick={loadAsrStatus}
+            >
+              刷新模型列表
+            </Button>
           </Grid>
         </Grid>
       </Paper>
