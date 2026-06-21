@@ -173,7 +173,7 @@ def process_audio_subtitle(task_id, app):
 
             socketio.emit('task_progress', {
                 'task_id': task.id,
-                'progress': 30,
+                'progress': 20,
                 'status': '开始转录...'
             }, namespace='/')
 
@@ -192,13 +192,49 @@ def process_audio_subtitle(task_id, app):
                 verbose=False,
             )
 
+            full_text = result.text if hasattr(result, 'text') else ''
+            detected_language = 'Chinese'
+            if hasattr(result, 'language'):
+                lang = result.language
+                if isinstance(lang, list):
+                    detected_language = lang[0] if lang else 'Chinese'
+                else:
+                    detected_language = lang
+
             socketio.emit('task_progress', {
                 'task_id': task.id,
-                'progress': 80,
-                'status': '生成字幕文件...'
+                'progress': 50,
+                'status': '加载对齐模型...'
             }, namespace='/')
 
-            segments = _parse_result(result)
+            aligner_model_name = Config.ASR_ALIGNER_MODEL
+            aligner_path = _resolve_model_path(aligner_model_name)
+
+            segments = None
+            if aligner_path:
+                try:
+                    aligner_model = _load_model(aligner_path)
+
+                    socketio.emit('task_progress', {
+                        'task_id': task.id,
+                        'progress': 65,
+                        'status': '强制对齐中...'
+                    }, namespace='/')
+
+                    sentences = _split_text_to_sentences(full_text)
+                    segments = _align_sentences(aligner_model, audio_file.file_path, sentences, detected_language)
+                    logger.info(f"Task {task_id}: ForcedAligner 对齐完成, {len(segments)} 段字幕")
+                except Exception as align_err:
+                    logger.warning(f"Task {task_id}: ForcedAligner 失败, 回退到句拆分: {align_err}")
+                    segments = None
+
+            if segments is None:
+                socketio.emit('task_progress', {
+                    'task_id': task.id,
+                    'progress': 80,
+                    'status': '生成字幕文件...'
+                }, namespace='/')
+                segments = _parse_result(result)
 
             json_path = f'{json_output}.json'
             segments_data = {
@@ -345,5 +381,149 @@ def _parse_result(result):
             'text': text,
         })
         seg_id += 1
+
+    return segments
+
+
+_SENTENCE_ENDS = set('。！？.!?')
+_CLAUSE_BREAKS = set('，、；：,;:')
+
+
+def _group_aligned_items(align_result, max_chars=None):
+    if max_chars is None:
+        max_chars = Config.ASR_MAX_SUBTITLE_CHARS
+
+    items = list(align_result.items) if hasattr(align_result, 'items') else list(align_result)
+    if not items:
+        return []
+
+    segments = []
+    seg_id = 1
+    current_text = ''
+    current_start = items[0].start_time
+    current_end = items[0].end_time
+
+    for i, item in enumerate(items):
+        char = item.text.strip()
+        current_text += char
+        current_end = item.end_time
+        text_len = len(current_text)
+
+        is_sentence_end = char and char[-1] in _SENTENCE_ENDS
+        is_clause_break = char and char[-1] in _CLAUSE_BREAKS
+
+        should_split = False
+        if is_sentence_end:
+            should_split = True
+        elif text_len >= max_chars:
+            should_split = True
+        elif text_len >= max_chars * 0.7 and is_clause_break:
+            should_split = True
+
+        if should_split and current_text.strip():
+            segments.append({
+                'id': seg_id,
+                'start': round(current_start, 3),
+                'end': round(current_end, 3),
+                'text': current_text.strip(),
+            })
+            seg_id += 1
+            current_text = ''
+            if i + 1 < len(items):
+                current_start = items[i + 1].start_time
+
+    if current_text.strip():
+        segments.append({
+            'id': seg_id,
+            'start': round(current_start, 3),
+            'end': round(current_end, 3),
+            'text': current_text.strip(),
+        })
+
+    return segments
+
+
+def _align_sentences(aligner_model, audio_path, sentences, language):
+    full_text = ''.join(sentences)
+    stripped = re.sub(r'[^\w\s]', '', full_text, flags=re.UNICODE)
+    if not stripped:
+        return []
+
+    result = aligner_model.generate(
+        audio=audio_path,
+        text=stripped,
+        language=language,
+    )
+    items = list(result.items)
+    if not items:
+        return []
+
+    orig_chars = []
+    for ch in full_text:
+        is_punct = bool(re.match(r'[^\w\s]', ch, flags=re.UNICODE))
+        orig_chars.append({'char': ch, 'is_punct': is_punct, 'time': None})
+
+    item_idx = 0
+    for oc in orig_chars:
+        if not oc['is_punct'] and item_idx < len(items):
+            oc['time'] = (items[item_idx].start_time, items[item_idx].end_time)
+            item_idx += 1
+
+    last_end = items[-1].end_time if items else 0
+    prev_time = None
+    for oc in reversed(orig_chars):
+        if oc['time']:
+            prev_time = oc['time']
+        elif prev_time:
+            oc['time'] = (prev_time[0], prev_time[1])
+
+    segments = []
+    seg_id = 1
+    max_chars = Config.ASR_MAX_SUBTITLE_CHARS
+    current_text = ''
+    current_start = None
+    current_end = 0
+    current_count = 0
+
+    for oc in orig_chars:
+        ch = oc['char']
+        current_text += ch
+        if oc['time']:
+            if current_start is None:
+                current_start = oc['time'][0]
+            current_end = oc['time'][1]
+        if not oc['is_punct']:
+            current_count += 1
+
+        is_sent_end = ch in _SENTENCE_ENDS
+        is_clause = ch in _CLAUSE_BREAKS
+
+        should_split = False
+        if is_sent_end and current_count >= 2:
+            should_split = True
+        elif current_count >= max_chars:
+            should_split = True
+        elif current_count >= max_chars * 0.7 and is_clause:
+            should_split = True
+
+        if should_split and current_text.strip():
+            segments.append({
+                'id': seg_id,
+                'start': round(current_start or 0, 3),
+                'end': round(current_end, 3),
+                'text': current_text.strip(),
+            })
+            seg_id += 1
+            current_text = ''
+            current_start = None
+            current_count = 0
+
+    if current_text.strip():
+        segments.append({
+            'id': seg_id,
+            'start': round(current_start or 0, 3),
+            'end': round(current_end, 3),
+            'text': current_text.strip(),
+        })
 
     return segments

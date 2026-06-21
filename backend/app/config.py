@@ -31,6 +31,8 @@ class Config:
     
     ASR_MODEL_DIR = '/Users/lwz/.cache/modelscope/hub/models/mlx-community'
     ASR_DEFAULT_MODEL = 'Qwen3-ASR-1.7B-8bit'
+    ASR_ALIGNER_MODEL = 'Qwen3-ForcedAligner-0.6B-8bit'
+    ASR_MAX_SUBTITLE_CHARS = 40
     
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{BASE_DIR / "vatooldb.db"}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False

@@ -205,6 +205,58 @@ def test_parse_result_keeps_short_text_intact():
     assert result[0]['text'] == "短句"
 
 
+def test_group_aligned_items_sentence_boundary():
+    from app.services.audio_subtitle import _group_aligned_items
+
+    class FakeItem:
+        def __init__(self, text, start_time, end_time):
+            self.text = text
+            self.start_time = start_time
+            self.end_time = end_time
+
+    class FakeAlignResult:
+        def __init__(self, items):
+            self.items = items
+
+    items = [
+        FakeItem('你', 0.0, 0.5),
+        FakeItem('好', 0.5, 1.0),
+        FakeItem('世', 1.0, 1.5),
+        FakeItem('界', 1.5, 2.0),
+        FakeItem('。', 2.0, 2.1),
+        FakeItem('再', 2.1, 2.5),
+        FakeItem('见', 2.5, 3.0),
+        FakeItem('。', 3.0, 3.1),
+    ]
+    result = _group_aligned_items(FakeAlignResult(items), max_chars=40)
+    assert len(result) == 2
+    assert result[0]['text'] == '你好世界。'
+    assert result[0]['start'] == 0.0
+    assert result[0]['end'] == 2.1
+    assert result[1]['text'] == '再见。'
+    assert result[1]['start'] == 2.1
+
+
+def test_group_aligned_items_max_chars_split():
+    from app.services.audio_subtitle import _group_aligned_items
+
+    class FakeItem:
+        def __init__(self, text, start_time, end_time):
+            self.text = text
+            self.start_time = start_time
+            self.end_time = end_time
+
+    class FakeAlignResult:
+        def __init__(self, items):
+            self.items = items
+
+    items = [FakeItem('字', i * 0.5, (i + 1) * 0.5) for i in range(60)]
+    result = _group_aligned_items(FakeAlignResult(items), max_chars=20)
+    assert len(result) >= 3
+    for seg in result:
+        assert len(seg['text']) <= 25
+
+
 def test_subtitle_api_missing_file_id(client):
     response = client.post('/api/audio/subtitle',
                           json={},
