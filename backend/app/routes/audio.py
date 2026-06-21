@@ -1,11 +1,17 @@
 from flask import Blueprint, request, jsonify
 from app.services.audio_extractor import start_audio_extraction
 from app.services.audio_editor import start_audio_clip
-from app.services.audio_separator import start_audio_separation
+from app.services.audio_separator import start_audio_separation, get_separation_status
 from app.utils.ffmpeg_utils import validate_audio_format
 from loguru import logger
 
 bp = Blueprint('audio', __name__, url_prefix='/api/audio')
+
+@bp.route('/separation/status', methods=['GET'])
+def separation_status():
+    """获取音源分离功能状态和模型信息"""
+    status = get_separation_status()
+    return jsonify(status)
 
 @bp.route('/extract', methods=['POST'])
 def extract():
@@ -76,11 +82,13 @@ def separate():
     
     audio_file_id = data.get('audio_file_id')
     stems = data.get('stems', ['vocals', 'drums', 'bass', 'other'])
+    engine = data.get('engine', 'demucs')  # 默认使用 Demucs
+    model = data.get('model', 'htdemucs_ft')  # 默认使用 htdemucs_ft
     
     if not audio_file_id:
         return jsonify({'error': 'audio_file_id is required'}), 400
     
-    task_id, error = start_audio_separation(audio_file_id, stems)
+    task_id, error = start_audio_separation(audio_file_id, stems, engine, model)
     
     if error:
         return jsonify({'error': error}), 400

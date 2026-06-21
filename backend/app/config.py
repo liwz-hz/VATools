@@ -21,9 +21,13 @@ class Config:
     DEFAULT_BITRATE = '192k'
     DEFAULT_SAMPLE_RATE = 44100
     
-    SEPARATION_MODEL = 'spleeter'
+    SEPARATION_MODEL = 'demucs'  # 默认使用 Demucs（Spleeter不支持Python 3.13）
     ACCELERATION_TYPE = 'auto'  # 'auto', 'mps', 'mlx', 'cpu'
     SEPARATION_OUTPUT_FORMAT = 'wav'
+    
+    # UVR模型默认路径（macOS）
+    UVR_MODEL_DIR = '/Applications/Ultimate Vocal Remover.app/Contents/Resources/models'
+    SEPARATION_MODEL_DIR = UVR_MODEL_DIR
     
     SQLALCHEMY_DATABASE_URI = f'sqlite:///{BASE_DIR / "vatooldb.db"}'
     SQLALCHEMY_TRACK_MODIFICATIONS = False

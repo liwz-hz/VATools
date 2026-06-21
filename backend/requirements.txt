@@ -19,7 +19,7 @@ ffmpeg-python==0.2.0
 
 # WebSocket
 python-socketio==5.10.0
-eventlet==0.33.3
+eventlet>=0.41.0
 
 # 日志
 loguru==0.7.2

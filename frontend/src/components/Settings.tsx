@@ -11,17 +11,42 @@ import {
   InputLabel,
   Alert,
   Grid,
+  Chip,
+  CircularProgress,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
+  List,
+  ListItem,
+  ListItemText,
 } from '@mui/material'
-import { Save, Restore } from '@mui/icons-material'
-import { getConfig, updateConfig, resetConfig } from '../services/api'
+import { Save, Restore, Folder, Search, CheckCircle, ExpandMore } from '@mui/icons-material'
+import { getConfig, updateConfig, resetConfig, scanModels, validateModelDir, getSeparationStatus } from '../services/api'
+
+interface EngineStatus {
+  name: string
+  available: boolean
+  error: string | null
+  models: Record<string, {
+    available: boolean
+    description: string
+    stems: string[]
+  }>
+}
 
 const Settings: React.FC = () => {
   const [config, setConfig] = useState<Record<string, string>>({})
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState<string | null>(null)
+  const [scanning, setScanning] = useState(false)
+  const [validating, setValidating] = useState(false)
+  const [foundModels, setFoundModels] = useState<any>(null)
+  const [modelValidation, setModelValidation] = useState<any>(null)
+  const [engineStatus, setEngineStatus] = useState<Record<string, EngineStatus>>({})
 
   useEffect(() => {
     loadConfig()
+    loadEngineStatus()
   }, [])
 
   const loadConfig = async () => {
@@ -29,7 +54,16 @@ const Settings: React.FC = () => {
       const data = await getConfig()
       setConfig(data)
     } catch {
-      setError('Failed to load config')
+      setError('加载配置失败')
+    }
+  }
+
+  const loadEngineStatus = async () => {
+    try {
+      const status = await getSeparationStatus()
+      setEngineStatus(status.engines || {})
+    } catch (err) {
+      console.error('Failed to load engine status:', err)
     }
   }
 
@@ -38,6 +72,10 @@ const Settings: React.FC = () => {
       ...prev,
       [key]: value,
     }))
+    // 清除验证状态
+    if (key === 'separation_model_dir') {
+      setModelValidation(null)
+    }
   }
 
   const handleSave = async () => {
@@ -46,7 +84,7 @@ const Settings: React.FC = () => {
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch {
-      setError('Failed to save config')
+      setError('保存配置失败')
     }
   }
 
@@ -57,20 +95,54 @@ const Settings: React.FC = () => {
       setSuccess(true)
       setTimeout(() => setSuccess(false), 3000)
     } catch {
-      setError('Failed to reset config')
+      setError('重置配置失败')
+    }
+  }
+
+  const handleScanModels = async () => {
+    setScanning(true)
+    setFoundModels(null)
+    try {
+      const models = await scanModels()
+      setFoundModels(models)
+    } catch (err: any) {
+      setError('扫描模型失败: ' + (err.message || '未知错误'))
+    } finally {
+      setScanning(false)
+    }
+  }
+
+  const handleValidateModelDir = async () => {
+    if (!config.separation_model_dir) {
+      setError('请先输入模型目录路径')
+      return
+    }
+
+    setValidating(true)
+    setModelValidation(null)
+    try {
+      const result = await validateModelDir(config.separation_model_dir)
+      setModelValidation(result)
+    } catch (err: any) {
+      setModelValidation({
+        valid: false,
+        error: err.response?.data?.error || '验证失败'
+      })
+    } finally {
+      setValidating(false)
     }
   }
 
   return (
     <Box>
       {success && (
-        <Alert severity="success" sx={{ mb: 2 }}>
+        <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(false)}>
           配置已保存
         </Alert>
       )}
 
       {error && (
-        <Alert severity="error" sx={{ mb: 2 }}>
+        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
           {error}
         </Alert>
       )}
@@ -211,19 +283,146 @@ const Settings: React.FC = () => {
           音源分离设置
         </Typography>
 
+        <Alert severity="info" sx={{ mb: 2 }}>
+          💡 音源分离需要手动配置模型路径。如果不配置，分离功能将无法使用。
+        </Alert>
+
         <Grid container spacing={2}>
           <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="模型目录路径"
+              placeholder="例如: ~/models/audio_separation 或 /path/to/models"
+              value={config.separation_model_dir || ''}
+              onChange={(e) => handleChange('separation_model_dir', e.target.value)}
+              helperText="请指定包含音源分离模型的目录（Spleeter或Demucs模型）"
+              InputProps={{
+                startAdornment: <Folder sx={{ mr: 1, color: 'action.active' }} />
+              }}
+            />
+          </Grid>
+
+          <Grid item xs={12}>
+            <Box sx={{ display: 'flex', gap: 1 }}>
+              <Button
+                variant="outlined"
+                startIcon={validating ? <CircularProgress size={20} /> : <CheckCircle />}
+                onClick={handleValidateModelDir}
+                disabled={!config.separation_model_dir || validating}
+              >
+                {validating ? '验证中...' : '验证路径'}
+              </Button>
+              <Button
+                variant="outlined"
+                startIcon={scanning ? <CircularProgress size={20} /> : <Search />}
+                onClick={handleScanModels}
+                disabled={scanning}
+              >
+                {scanning ? '扫描中...' : '扫描系统模型'}
+              </Button>
+            </Box>
+          </Grid>
+
+          {modelValidation && (
+            <Grid item xs={12}>
+              <Alert severity={modelValidation.valid ? 'success' : 'error'}>
+                {modelValidation.valid ? (
+                  <Box>
+                    <Typography variant="body2">✓ 模型目录有效</Typography>
+                    {modelValidation.found_models && (
+                      <Box sx={{ mt: 1, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        {modelValidation.found_models.map((model: string) => (
+                          <Chip key={model} label={model} size="small" color="primary" />
+                        ))}
+                      </Box>
+                    )}
+                  </Box>
+                ) : (
+                  <Box>
+                    <Typography variant="body2">✗ {modelValidation.error}</Typography>
+                    {modelValidation.expected && (
+                      <Typography variant="caption" display="block" sx={{ mt: 1 }}>
+                        期望的模型结构: {modelValidation.expected.join(', ')}
+                      </Typography>
+                    )}
+                  </Box>
+                )}
+              </Alert>
+            </Grid>
+          )}
+
+          {foundModels && (
+            <Grid item xs={12}>
+              <Accordion>
+                <AccordionSummary expandIcon={<ExpandMore />}>
+                  <Typography>扫描结果</Typography>
+                </AccordionSummary>
+                <AccordionDetails>
+                  {Object.entries(foundModels).map(([engine, models]: [string, any]) => (
+                    <Box key={engine} sx={{ mb: 2 }}>
+                      <Typography variant="subtitle2" gutterBottom>
+                        {engine.toUpperCase()}
+                      </Typography>
+                      {Object.keys(models).length > 0 ? (
+                        <List dense>
+                          {Object.entries(models).map(([modelName, path]: [string, any]) => (
+                            <ListItem key={modelName}>
+                              <ListItemText
+                                primary={modelName}
+                                secondary={path}
+                              />
+                            </ListItem>
+                          ))}
+                        </List>
+                      ) : (
+                        <Typography variant="body2" color="textSecondary">
+                          未找到模型
+                        </Typography>
+                      )}
+                    </Box>
+                  ))}
+                </AccordionDetails>
+              </Accordion>
+            </Grid>
+          )}
+
+          <Grid item xs={12}>
             <FormControl fullWidth>
-              <InputLabel>分离模型</InputLabel>
+              <InputLabel>分离引擎</InputLabel>
               <Select
-                value={config.separation_model || 'spleeter'}
-                label="分离模型"
+                value={config.separation_model || 'demucs'}
+                label="分离引擎"
                 onChange={(e) => handleChange('separation_model', e.target.value)}
               >
-                <MenuItem value="spleeter">Spleeter</MenuItem>
+                {Object.entries(engineStatus).map(([id, status]) => (
+                  <MenuItem key={id} value={id} disabled={!status.available}>
+                    {status.name} {!status.available && '(不可用)'}
+                  </MenuItem>
+                ))}
               </Select>
             </FormControl>
           </Grid>
+
+          <Grid item xs={12}>
+            <FormControl fullWidth>
+              <InputLabel>默认模型</InputLabel>
+              <Select
+                value={config.separation_default_model || 'htdemucs_ft'}
+                label="默认模型"
+                onChange={(e) => handleChange('separation_default_model', e.target.value)}
+                disabled={!engineStatus[config.separation_model]?.available}
+              >
+                {engineStatus[config.separation_model]?.available && 
+                  Object.entries(engineStatus[config.separation_model].models).map(([id, info]) => (
+                    <MenuItem key={id} value={id}>
+                      {info.description || id}
+                    </MenuItem>
+                  ))
+                }
+              </Select>
+            </FormControl>
+          </Grid>
+
           <Grid item xs={12}>
             <FormControl fullWidth>
               <InputLabel>加速方式</InputLabel>
@@ -239,6 +438,7 @@ const Settings: React.FC = () => {
               </Select>
             </FormControl>
           </Grid>
+
           <Grid item xs={12}>
             <FormControl fullWidth>
               <InputLabel>输出格式</InputLabel>

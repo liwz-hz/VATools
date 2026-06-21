@@ -86,3 +86,33 @@ def download_file(file_id):
         return jsonify({'error': 'File not found'}), 404
     
     return send_file(file.file_path, as_attachment=True, download_name=file.filename)
+
+@bp.route('/serve', methods=['GET'])
+def serve_file_by_path():
+    """通过路径提供文件服务（用于音源分离结果等）"""
+    file_path = request.args.get('path')
+    download = request.args.get('download', '0')
+    
+    if not file_path:
+        return jsonify({'error': 'Path parameter is required'}), 400
+    
+    # 安全检查：只允许访问workspace目录
+    workspace_dir = os.path.abspath(Config.WORKSPACE_DIR)
+    requested_path = os.path.abspath(file_path)
+    
+    if not requested_path.startswith(workspace_dir):
+        return jsonify({'error': 'Access denied'}), 403
+    
+    if not os.path.exists(requested_path):
+        return jsonify({'error': 'File not found'}), 404
+    
+    if not os.path.isfile(requested_path):
+        return jsonify({'error': 'Not a file'}), 400
+    
+    filename = os.path.basename(requested_path)
+    
+    return send_file(
+        requested_path, 
+        as_attachment=(download == '1'), 
+        download_name=filename
+    )

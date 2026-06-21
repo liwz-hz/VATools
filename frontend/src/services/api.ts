@@ -85,10 +85,12 @@ export const clipAudio = async (
   return response.data
 }
 
-export const separateAudio = async (audioFileId: number, stems: string[]) => {
+export const separateAudio = async (audioFileId: number, stems: string[], engine?: string, model?: string) => {
   const response = await api.post('/audio/separate', {
     audio_file_id: audioFileId,
     stems,
+    engine: engine || 'demucs',
+    model: model || 'htdemucs_ft',
   })
   return response.data
 }
@@ -123,5 +125,20 @@ export const updateConfig = async (config: Record<string, string>) => {
 
 export const resetConfig = async () => {
   const response = await api.post('/config/reset')
+  return response.data
+}
+
+export const getSeparationStatus = async () => {
+  const response = await api.get('/audio/separation/status')
+  return response.data
+}
+
+export const scanModels = async () => {
+  const response = await api.get('/config/models/scan')
+  return response.data
+}
+
+export const validateModelDir = async (modelDir: string) => {
+  const response = await api.post('/config/models/validate', { model_dir: modelDir })
   return response.data
 }
