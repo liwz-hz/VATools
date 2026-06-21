@@ -514,6 +514,28 @@ const Settings: React.FC = () => {
         </Grid>
       </Paper>
 
+      <Paper sx={{ p: 3, mb: 3 }}>
+        <Typography variant="h6" gutterBottom>
+          TTS 语音合成设置
+        </Typography>
+
+        <Grid container spacing={2}>
+          <Grid item xs={12}>
+            <TextField
+              fullWidth
+              label="TTS 模型目录路径"
+              placeholder="/Users/lwz/.cache/modelscope/hub/models/mlx-community"
+              value={config.tts_model_dir || ''}
+              onChange={(e) => handleChange('tts_model_dir', e.target.value)}
+              helperText="包含 Qwen3-TTS 模型的目录（默认与 ASR 共享）"
+              InputProps={{
+                startAdornment: <Folder sx={{ mr: 1, color: 'action.active' }} />
+              }}
+            />
+          </Grid>
+        </Grid>
+      </Paper>
+
       <Box sx={{ display: 'flex', gap: 1 }}>
         <Button
           variant="contained"
