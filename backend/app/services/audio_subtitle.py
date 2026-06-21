@@ -477,8 +477,7 @@ def _align_sentences(aligner_model, audio_path, sentences, language):
         elif prev_time:
             oc['time'] = (prev_time[0], prev_time[1])
 
-    segments = []
-    seg_id = 1
+    raw_segments = []
     max_chars = Config.ASR_MAX_SUBTITLE_CHARS
     current_text = ''
     current_start = None
@@ -501,45 +500,51 @@ def _align_sentences(aligner_model, audio_path, sentences, language):
             current_len += 1
 
         should_split = False
-        if is_sent_end and current_len >= 2:
+        if is_sent_end:
+            should_split = True
+        elif is_clause and current_len >= 4:
             should_split = True
         elif current_len >= max_chars:
             should_split = True
-        elif current_len >= max_chars * 0.6 and is_clause:
-            should_split = True
 
         if should_split and current_text.strip():
-            segments.append({
-                'id': seg_id,
+            raw_segments.append({
                 'start': round(current_start or 0, 3),
                 'end': round(current_end, 3),
                 'text': current_text.strip(),
             })
-            seg_id += 1
             current_text = ''
             current_start = None
             current_len = 0
 
     if current_text.strip():
-        segments.append({
-            'id': seg_id,
+        raw_segments.append({
             'start': round(current_start or 0, 3),
             'end': round(current_end, 3),
             'text': current_text.strip(),
         })
 
     merged = []
-    i = 0
-    while i < len(segments):
-        seg = segments[i]
+    for seg in raw_segments:
         text = seg['text']
-        if text and text[0] in _CLAUSE_BREAKS and merged:
+        char_count = sum(1 for c in text if not re.match(r'[^\w\s]', c, flags=re.UNICODE))
+
+        if merged and char_count <= 6 and text[-1] in _SENTENCE_ENDS:
             merged[-1]['text'] += text
             merged[-1]['end'] = seg['end']
-            i += 1
             continue
+
+        if merged and text and text[0] in _CLAUSE_BREAKS:
+            merged[-1]['text'] += text
+            merged[-1]['end'] = seg['end']
+            continue
+
+        if merged and len(text) <= 3:
+            merged[-1]['text'] += text
+            merged[-1]['end'] = seg['end']
+            continue
+
         merged.append(seg)
-        i += 1
 
     for idx, seg in enumerate(merged, 1):
         seg['id'] = idx
