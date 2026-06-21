@@ -200,3 +200,56 @@ export const analyzeTTSEmotion = async (text: string) => {
   const response = await api.post('/audio/tts/analyze', { text })
   return response.data
 }
+
+export const getSAMStatus = async () => {
+  const response = await api.get('/image/status')
+  return response.data
+}
+
+export const loadSAMModel = async () => {
+  const response = await api.post('/image/load')
+  return response.data
+}
+
+export const detectImageObjects = async (imageFile: File, prompt: string) => {
+  const formData = new FormData()
+  formData.append('image', imageFile)
+  formData.append('prompt', prompt)
+  const response = await api.post('/image/detect', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+  })
+  return response.data
+}
+
+export const extractImageObject = async (imageFile: File, mask: string, box?: number[]) => {
+  const formData = new FormData()
+  formData.append('image', imageFile)
+  formData.append('mask', mask)
+  if (box) {
+    formData.append('box', JSON.stringify(box))
+  }
+  const response = await api.post('/image/extract', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    responseType: 'blob',
+  })
+  return response.data
+}
+
+export const removeImageBackground = async (imageFile: File, prompt?: string) => {
+  const formData = new FormData()
+  formData.append('image', imageFile)
+  if (prompt) {
+    formData.append('prompt', prompt)
+  }
+  const response = await api.post('/image/remove-background', formData, {
+    headers: {
+      'Content-Type': 'multipart/form-data',
+    },
+    responseType: 'blob',
+  })
+  return response.data
+}

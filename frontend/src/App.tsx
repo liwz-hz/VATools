@@ -6,6 +6,7 @@ import AudioEditor from './components/AudioEditor'
 import AudioSeparator from './components/AudioSeparator'
 import AudioSubtitle from './components/AudioSubtitle'
 import AudioTTS from './components/AudioTTS'
+import ImageSegmentation from './components/ImageSegmentation'
 import Settings from './components/Settings'
 
 const lightTheme = createTheme({
@@ -48,6 +49,7 @@ function App() {
             <Tab label="音源分离" />
             <Tab label="自动字幕" />
             <Tab label="语音合成" />
+            <Tab label="图片抠图" />
             <Tab label="设置" />
           </Tabs>
         </Box>
@@ -57,7 +59,8 @@ function App() {
           {currentTab === 2 && <AudioSeparator />}
           {currentTab === 3 && <AudioSubtitle />}
           {currentTab === 4 && <AudioTTS />}
-          {currentTab === 5 && <Settings />}
+          {currentTab === 5 && <ImageSegmentation />}
+          {currentTab === 6 && <Settings />}
         </Box>
       </Container>
     </ThemeProvider>

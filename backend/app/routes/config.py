@@ -27,6 +27,8 @@ DEFAULT_CONFIG = {
     'tts_model_dir': AppConfig.TTS_MODEL_DIR,
     'tts_custom_voice_model': AppConfig.TTS_CUSTOM_VOICE_MODEL,
     'tts_base_model': AppConfig.TTS_BASE_MODEL,
+    'sam_model_dir': AppConfig.SAM_MODEL_DIR,
+    'sam_score_threshold': str(AppConfig.SAM_SCORE_THRESHOLD),
 }
 
 @bp.route('', methods=['GET'])

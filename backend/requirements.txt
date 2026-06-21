@@ -26,3 +26,8 @@ loguru==0.7.2
 
 # ASR语音识别
 mlx-audio==0.4.4
+
+# 图像分割 (SAM 3.1)
+mlx-vlm>=0.4.3
+opencv-python>=4.8.0
+Pillow>=10.0.0
