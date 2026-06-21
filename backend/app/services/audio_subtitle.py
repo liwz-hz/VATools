@@ -387,6 +387,14 @@ def _parse_result(result):
 
 _SENTENCE_ENDS = set('。！？.!?')
 _CLAUSE_BREAKS = set('，、；：,;:')
+_INTERJECTIONS = set('啊哦嗯哈呵嘿嘻哼唉哎呀嘛吧呢吗啦哇噢呐嗬哟喔嘘嚯啧呸嘞咯哒呗咧嘚啵')
+
+
+def _is_interjection_only(text):
+    content = re.sub(r'[^\w\s]', '', text, flags=re.UNICODE)
+    if not content:
+        return False
+    return all(c in _INTERJECTIONS for c in content)
 
 
 def _group_aligned_items(align_result, max_chars=None):
@@ -525,26 +533,48 @@ def _align_sentences(aligner_model, audio_path, sentences, language):
         })
 
     merged = []
-    for seg in raw_segments:
+    i = 0
+    while i < len(raw_segments):
+        seg = raw_segments[i]
         text = seg['text']
         char_count = sum(1 for c in text if not re.match(r'[^\w\s]', c, flags=re.UNICODE))
+
+        if _is_interjection_only(text):
+            ends_with_sentence = text[-1] in _SENTENCE_ENDS
+            if not ends_with_sentence and i + 1 < len(raw_segments) and not _is_interjection_only(raw_segments[i + 1]['text']):
+                next_seg = raw_segments[i + 1]
+                merged.append({
+                    'start': seg['start'],
+                    'end': next_seg['end'],
+                    'text': text + next_seg['text'],
+                })
+                i += 2
+                continue
+            else:
+                merged.append(seg)
+                i += 1
+                continue
 
         if merged and char_count <= 6 and text[-1] in _SENTENCE_ENDS:
             merged[-1]['text'] += text
             merged[-1]['end'] = seg['end']
+            i += 1
             continue
 
         if merged and text and text[0] in _CLAUSE_BREAKS:
             merged[-1]['text'] += text
             merged[-1]['end'] = seg['end']
+            i += 1
             continue
 
         if merged and len(text) <= 3:
             merged[-1]['text'] += text
             merged[-1]['end'] = seg['end']
+            i += 1
             continue
 
         merged.append(seg)
+        i += 1
 
     for idx, seg in enumerate(merged, 1):
         seg['id'] = idx
