@@ -29,6 +29,7 @@ DEFAULT_CONFIG = {
     'tts_base_model': AppConfig.TTS_BASE_MODEL,
     'sam_model_dir': AppConfig.SAM_MODEL_DIR,
     'sam_score_threshold': str(AppConfig.SAM_SCORE_THRESHOLD),
+    'birefnet_model_dir': AppConfig.BIREFNET_MODEL_DIR,
 }
 
 @bp.route('', methods=['GET'])

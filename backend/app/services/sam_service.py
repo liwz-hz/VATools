@@ -9,6 +9,7 @@ from PIL import Image
 from pathlib import Path
 from typing import List, Dict, Optional, Tuple
 from loguru import logger
+import traceback
 
 # MLX and SAM imports
 import mlx.core as mx
@@ -63,7 +64,8 @@ class SAMService:
             return True
             
         except Exception as e:
-            logger.error(f"Failed to load SAM model: {e}")
+            logger.error(f"[SAM] Failed to load model: {e}")
+            logger.error(traceback.format_exc())
             return False
     
     def is_loaded(self) -> bool:
@@ -98,7 +100,8 @@ class SAMService:
                 'labels': [text_prompt] * len(result.scores)
             }
         except Exception as e:
-            logger.error(f"Detection failed: {e}")
+            logger.error(f"[SAM] Detection failed: {e}")
+            logger.error(traceback.format_exc())
             return None
     
     def extract_object(
@@ -144,7 +147,8 @@ class SAMService:
             return result
             
         except Exception as e:
-            logger.error(f"Extraction failed: {e}")
+            logger.error(f"[SAM] Extraction failed: {e}")
+            logger.error(traceback.format_exc())
             return None
     
     def remove_background(

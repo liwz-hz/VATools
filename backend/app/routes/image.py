@@ -5,6 +5,7 @@ Handles image upload, segmentation, and extraction operations
 import os
 import io
 import base64
+import traceback
 from flask import Blueprint, request, jsonify, send_file
 from PIL import Image
 from loguru import logger
@@ -29,7 +30,8 @@ def get_status():
             'score_threshold': sam_service.score_threshold
         })
     except Exception as e:
-        logger.error(f"Status check failed: {e}")
+        logger.error(f"[SAM] Status check failed: {e}")
+        logger.error(traceback.format_exc())
         return jsonify({'available': False, 'error': str(e)}), 500
 
 
@@ -43,7 +45,8 @@ def load_model():
         else:
             return jsonify({'status': 'failed', 'message': 'Failed to load model'}), 500
     except Exception as e:
-        logger.error(f"Model loading failed: {e}")
+        logger.error(f"[SAM] Model loading failed: {e}")
+        logger.error(traceback.format_exc())
         return jsonify({'status': 'error', 'message': str(e)}), 500
 
 
@@ -105,7 +108,8 @@ def detect_objects():
         })
         
     except Exception as e:
-        logger.error(f"Detection failed: {e}")
+        logger.error(f"[SAM] Detection failed: {e}")
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
@@ -167,7 +171,8 @@ def extract_object():
         )
         
     except Exception as e:
-        logger.error(f"Extraction failed: {e}")
+        logger.error(f"[SAM] Extraction failed: {e}")
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
 
 
@@ -212,5 +217,6 @@ def remove_background():
         )
         
     except Exception as e:
-        logger.error(f"Background removal failed: {e}")
+        logger.error(f"[SAM] Background removal failed: {e}")
+        logger.error(traceback.format_exc())
         return jsonify({'error': str(e)}), 500
