@@ -108,6 +108,16 @@ const ImageSegmentation: React.FC = () => {
     maxFiles: 1,
   })
 
+  const handleModeChange = (_: React.MouseEvent<HTMLElement>, newMode: 'detect' | 'remove-bg' | null) => {
+    if (newMode && newMode !== mode) {
+      setMode(newMode)
+      setVisualization('')
+      setDetectedObjects([])
+      setExtractedImages([])
+      setError(null)
+    }
+  }
+
   const handleDetect = async () => {
     if (!imageFile) return
 
@@ -294,7 +304,7 @@ const ImageSegmentation: React.FC = () => {
           <ToggleButtonGroup
             value={mode}
             exclusive
-            onChange={(_, v) => v && setMode(v)}
+            onChange={handleModeChange}
             sx={{ mb: 2 }}
           >
             <ToggleButton value="detect">
