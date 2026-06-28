@@ -18,6 +18,7 @@ class BiRefNetService:
         self.device = torch.device("mps" if torch.backends.mps.is_available() else "cpu")
         self.models = {}
         self.model_paths = {
+            "dynamic": "/Users/lwz/.cache/modelscope/hub/models/birefnet/BiRefNet_dynamic",
             "general": "/Users/lwz/.cache/modelscope/hub/models/birefnet/BiRefNet",
             "hr_matting": "/Users/lwz/.cache/modelscope/hub/models/birefnet/BiRefNet_HR-matting",
         }
@@ -64,7 +65,7 @@ class BiRefNetService:
     def segment_image(
         self,
         image: Image.Image,
-        model_type: str = "general",
+        model_type: str = "dynamic",
         output_size: Optional[Tuple[int, int]] = None
     ) -> Optional[Image.Image]:
         """
@@ -72,7 +73,7 @@ class BiRefNetService:
         
         Args:
             image: PIL Image to segment
-            model_type: "general" or "hr_matting"
+            model_type: "dynamic", "general" or "hr_matting"
             output_size: Optional output size (width, height), defaults to input size
             
         Returns:
@@ -85,7 +86,12 @@ class BiRefNetService:
         original_size = image.size
         
         # Determine input size based on model
-        if model_type == "hr_matting":
+        if model_type == "dynamic":
+            # Use native resolution, round to multiple of 8 for optimal performance
+            w, h = original_size
+            input_size = (self._round_to_multiple(h, 8), self._round_to_multiple(w, 8))
+            print(f"Dynamic mode: using native resolution {input_size}")
+        elif model_type == "hr_matting":
             input_size = (2048, 2048)
         else:
             input_size = (1024, 1024)
@@ -125,14 +131,14 @@ class BiRefNetService:
     def remove_background(
         self,
         image: Image.Image,
-        model_type: str = "general"
+        model_type: str = "dynamic"
     ) -> Optional[Image.Image]:
         """
         Remove background from image
         
         Args:
             image: PIL Image
-            model_type: "general" or "hr_matting"
+            model_type: "dynamic", "general" or "hr_matting"
             
         Returns:
             PIL Image with transparent background or None if failed
@@ -162,6 +168,10 @@ class BiRefNetService:
                     "loaded": model_type in self.models
                 })
         return available
+    
+    def _round_to_multiple(self, value: int, multiple: int) -> int:
+        """Round value to nearest multiple"""
+        return round(value / multiple) * multiple
 
 
 # Global service instance

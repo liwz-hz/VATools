@@ -43,7 +43,7 @@ def segment_image():
             return jsonify({'error': 'No image file provided'}), 400
         
         image_file = request.files['image']
-        model_type = request.form.get('model_type', 'general')
+        model_type = request.form.get('model_type', 'dynamic')
         
         # Load image
         image = Image.open(image_file).convert('RGB')
@@ -87,7 +87,7 @@ def remove_background():
             return jsonify({'error': 'No image file provided'}), 400
         
         image_file = request.files['image']
-        model_type = request.form.get('model_type', 'general')
+        model_type = request.form.get('model_type', 'dynamic')
         
         # Load image
         image = Image.open(image_file).convert('RGB')

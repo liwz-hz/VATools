@@ -265,7 +265,7 @@ export const loadBirefnetModel = async (modelType: string) => {
   return response.data
 }
 
-export const segmentBirefnetImage = async (imageFile: File, modelType: string = 'general') => {
+export const segmentBirefnetImage = async (imageFile: File, modelType: string = 'dynamic') => {
   const formData = new FormData()
   formData.append('image', imageFile)
   formData.append('model_type', modelType)
@@ -277,7 +277,7 @@ export const segmentBirefnetImage = async (imageFile: File, modelType: string = 
   return response.data
 }
 
-export const removeBirefnetBackground = async (imageFile: File, modelType: string = 'general') => {
+export const removeBirefnetBackground = async (imageFile: File, modelType: string = 'dynamic') => {
   const formData = new FormData()
   formData.append('image', imageFile)
   formData.append('model_type', modelType)

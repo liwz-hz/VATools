@@ -43,7 +43,7 @@ const BiRefNetSegmentation: React.FC = () => {
   const [imageFile, setImageFile] = useState<File | null>(null)
   const [imagePreview, setImagePreview] = useState<string>('')
   const [operation, setOperation] = useState<'segment' | 'remove-bg'>('remove-bg')
-  const [modelType, setModelType] = useState<string>('general')
+  const [modelType, setModelType] = useState<string>('dynamic')
   const [isProcessing, setIsProcessing] = useState(false)
   const [progress, setProgress] = useState(0)
   const [error, setError] = useState<string | null>(null)
@@ -209,11 +209,19 @@ const BiRefNetSegmentation: React.FC = () => {
               label="模型类型"
               onChange={(e) => setModelType(e.target.value)}
             >
+              <MenuItem value="dynamic">
+                <Box>
+                  <Typography>动态分辨率 (Dynamic) - 推荐</Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    自动匹配图片原始分辨率 (256-2304)，最佳质量
+                  </Typography>
+                </Box>
+              </MenuItem>
               <MenuItem value="general">
                 <Box>
                   <Typography>通用分割 (General)</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    1024x1024，适合一般场景
+                    固定 1024x1024，适合一般场景
                   </Typography>
                 </Box>
               </MenuItem>
@@ -221,7 +229,7 @@ const BiRefNetSegmentation: React.FC = () => {
                 <Box>
                   <Typography>高分辨率抠图 (HR-Matting)</Typography>
                   <Typography variant="caption" color="text.secondary">
-                    2048x2048，适合精细抠图（头发、边缘）
+                    固定 2048x2048，适合精细抠图（头发、边缘）
                   </Typography>
                 </Box>
               </MenuItem>
